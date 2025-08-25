@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // Configuración base de la API
-const API_BASE_URL = 'http://localhost:5000/api';
+const API_BASE_URL = 'https://productonebackend.onrender.com/api';
 
 // Crear instancia de axios con configuración base
 const api = axios.create({
