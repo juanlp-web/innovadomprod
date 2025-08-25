@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { 
   Plus, 
   Edit, 
@@ -10,88 +10,78 @@ import {
   Box,
   AlertTriangle,
   CheckCircle,
-  XCircle
+  XCircle,
+  Loader2
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { useProducts } from '@/hooks/useProducts'
 
 export function ProductosPage() {
   const [showForm, setShowForm] = useState(false)
   const [editingProduct, setEditingProduct] = useState(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [filterType, setFilterType] = useState('todos')
-  const [products, setProducts] = useState([
-    {
-      id: 1,
-      name: 'Crema Hidratante Facial',
-      unit: 'ml',
-      baseUnit: 'ml',
-      conversionFactor: 1,
-      inventoryType: 'producto_terminado',
-      minStock: 50,
-      currentStock: 120,
-      description: 'Crema hidratante para piel seca y sensible',
-      price: 25.99,
-      supplier: 'Proveedor A',
-      category: 'Cuidado Facial'
-    },
-    {
-      id: 2,
-      name: 'Aceite de Coco',
-      unit: 'kg',
-      baseUnit: 'g',
-      conversionFactor: 1000,
-      inventoryType: 'materia_prima',
-      minStock: 10,
-      currentStock: 25,
-      description: 'Aceite de coco virgen para formulaciones',
-      price: 15.50,
-      supplier: 'Proveedor B',
-      category: 'Materias Primas'
-    },
-    {
-      id: 3,
-      name: 'Frasco 50ml',
-      unit: 'unidad',
-      baseUnit: 'unidad',
-      conversionFactor: 1,
-      inventoryType: 'envases',
-      minStock: 100,
-      currentStock: 200,
-      description: 'Frasco de vidrio con tapa rosca',
-      price: 0.85,
-      supplier: 'Proveedor C',
-      category: 'Envases'
-    }
-  ])
+  
+  // Hook para productos del backend
+  const {
+    products,
+    loading,
+    error,
+    pagination,
+    fetchProducts,
+    createProduct,
+    updateProduct,
+    deleteProduct,
+    clearError
+  } = useProducts()
 
   const [formData, setFormData] = useState({
     name: '',
     unit: '',
-    baseUnit: '',
-    conversionFactor: 1,
-    inventoryType: 'materia_prima',
+    category: 'materia_prima',
     minStock: 0,
     description: '',
     price: 0,
     supplier: '',
-    category: ''
+    cost: 0
   })
 
   const units = [
-    { value: 'g', label: 'Gramos (g)', baseUnit: 'g', factor: 1 },
-    { value: 'kg', label: 'Kilogramos (kg)', baseUnit: 'g', factor: 1000 },
-    { value: 'ml', label: 'Mililitros (ml)', baseUnit: 'ml', factor: 1 },
-    { value: 'l', label: 'Litros (l)', baseUnit: 'ml', factor: 1000 },
-    { value: 'unidad', label: 'Unidad', baseUnit: 'unidad', factor: 1 },
-    { value: 'docena', label: 'Docena', baseUnit: 'unidad', factor: 12 },
-    { value: 'caja', label: 'Caja', baseUnit: 'unidad', factor: 24 }
+    { value: 'g', label: 'Gramos (g)' },
+    { value: 'kg', label: 'Kilogramos (kg)' },
+    { value: 'ml', label: 'Mililitros (ml)' },
+    { value: 'l', label: 'Litros (l)' },
+    { value: 'unidad', label: 'Unidad' },
+    { value: 'docena', label: 'Docena' },
+    { value: 'caja', label: 'Caja' },
+    { value: 'metro', label: 'Metro' },
+    { value: 'cm', label: 'Centímetros (cm)' }
   ]
 
   const inventoryTypes = [
     { value: 'materia_prima', label: 'Materia Prima', icon: Leaf, color: 'text-green-600' },
     { value: 'producto_terminado', label: 'Producto Terminado', icon: Package, color: 'text-blue-600' },
-    { value: 'envases', label: 'Envases', icon: Box, color: 'text-purple-600' }
+    { value: 'empaque', label: 'Empaque', icon: Box, color: 'text-purple-600' },
+    { value: 'servicio', label: 'Servicio', icon: Package, color: 'text-orange-600' }
   ]
+
+  // Buscar productos cuando cambien los filtros
+  useEffect(() => {
+    const params = {
+      page: 1,
+      limit: 50
+    }
+    
+    if (searchTerm) {
+      params.search = searchTerm
+    }
+    
+    if (filterType !== 'todos') {
+      params.category = filterType
+    }
+    
+    fetchProducts(params)
+  }, [searchTerm, filterType, fetchProducts])
 
   const handleInputChange = (e) => {
     const { name, value } = e.target
@@ -99,71 +89,74 @@ export function ProductosPage() {
       ...prev,
       [name]: value
     }))
-
-    // Auto-update baseUnit and conversionFactor when unit changes
-    if (name === 'unit') {
-      const selectedUnit = units.find(u => u.value === value)
-      if (selectedUnit) {
-        setFormData(prev => ({
-          ...prev,
-          unit: value,
-          baseUnit: selectedUnit.baseUnit,
-          conversionFactor: selectedUnit.factor
-        }))
-      }
-    }
   }
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
     
-    if (editingProduct) {
-      // Update existing product
-      setProducts(prev => prev.map(p => 
-        p.id === editingProduct.id ? { ...formData, id: p.id } : p
-      ))
-      setEditingProduct(null)
-    } else {
-      // Create new product
-      const newProduct = {
-        ...formData,
-        id: Date.now(),
-        currentStock: 0
+    try {
+      if (editingProduct) {
+        // Actualizar producto existente
+        const result = await updateProduct(editingProduct._id, formData)
+        if (result.success) {
+          setEditingProduct(null)
+          resetForm()
+          setShowForm(false)
+        }
+      } else {
+        // Crear nuevo producto
+        const result = await createProduct(formData)
+        if (result.success) {
+          resetForm()
+          setShowForm(false)
+        }
       }
-      setProducts(prev => [...prev, newProduct])
+    } catch (error) {
+      console.error('Error en el formulario:', error)
     }
-    
-    setFormData({
-      name: '',
-      unit: '',
-      baseUnit: '',
-      conversionFactor: 1,
-      inventoryType: 'materia_prima',
-      minStock: 0,
-      description: '',
-      price: 0,
-      supplier: '',
-      category: ''
-    })
-    setShowForm(false)
   }
 
   const handleEdit = (product) => {
     setEditingProduct(product)
-    setFormData(product)
+    setFormData({
+      name: product.name || '',
+      unit: product.unit || '',
+      category: product.category || 'materia_prima',
+      minStock: product.minStock || 0,
+      description: product.description || '',
+      price: product.price || 0,
+      supplier: product.supplier || '',
+      cost: product.cost || 0
+    })
     setShowForm(true)
   }
 
-  const handleDelete = (productId) => {
+  const handleDelete = async (productId) => {
     if (window.confirm('¿Está seguro de que desea eliminar este producto?')) {
-      setProducts(prev => prev.filter(p => p.id !== productId))
+      const result = await deleteProduct(productId)
+      if (!result.success) {
+        alert(`Error al eliminar: ${result.error}`)
+      }
     }
+  }
+
+  const resetForm = () => {
+    setFormData({
+      name: '',
+      unit: '',
+      category: 'materia_prima',
+      minStock: 0,
+      description: '',
+      price: 0,
+      supplier: '',
+      cost: 0
+    })
   }
 
   const filteredProducts = products.filter(product => {
     const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         product.description.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesFilter = filterType === 'todos' || product.inventoryType === filterType
+                         (product.description && product.description.toLowerCase().includes(searchTerm.toLowerCase()))
+    const matchesFilter = filterType === 'todos' || product.category === filterType
     return matchesSearch && matchesFilter
   })
 
@@ -175,6 +168,24 @@ export function ProductosPage() {
     if (current <= 0) return { status: 'agotado', color: 'text-red-600', icon: XCircle }
     if (current <= min) return { status: 'bajo', color: 'text-orange-600', icon: AlertTriangle }
     return { status: 'normal', color: 'text-green-600', icon: CheckCircle }
+  }
+
+  // Mostrar mensaje de error si existe
+  if (error) {
+    return (
+      <div className="space-y-8 animate-fade-in">
+        <div className="card card-hover p-6">
+          <div className="text-center">
+            <XCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">Error de conexión</h3>
+            <p className="text-gray-500 mb-4">{error}</p>
+            <Button onClick={clearError} className="btn-primary">
+              Reintentar
+            </Button>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -230,18 +241,7 @@ export function ProductosPage() {
               onClick={() => {
                 setShowForm(false)
                 setEditingProduct(null)
-                setFormData({
-                  name: '',
-                  unit: '',
-                  baseUnit: '',
-                  conversionFactor: 1,
-                  inventoryType: 'materia_prima',
-                  minStock: 0,
-                  description: '',
-                  price: 0,
-                  supplier: '',
-                  category: ''
-                })
+                resetForm()
               }}
             >
               <XCircle className="w-5 h-5" />
@@ -272,8 +272,8 @@ export function ProductosPage() {
                   Tipo de Inventario *
                 </label>
                 <select
-                  name="inventoryType"
-                  value={formData.inventoryType}
+                  name="category"
+                  value={formData.category}
                   onChange={handleInputChange}
                   required
                   className="w-full input-field"
@@ -282,21 +282,6 @@ export function ProductosPage() {
                     <option key={type.value} value={type.value}>{type.label}</option>
                   ))}
                 </select>
-              </div>
-
-              {/* Categoría */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Categoría
-                </label>
-                <input
-                  type="text"
-                  name="category"
-                  value={formData.category}
-                  onChange={handleInputChange}
-                  className="w-full input-field"
-                  placeholder="Ej: Cuidado Facial"
-                />
               </div>
 
               {/* Unidad de Medida */}
@@ -320,40 +305,6 @@ export function ProductosPage() {
                 </select>
               </div>
 
-              {/* Unidad Base */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Unidad Base
-                </label>
-                <input
-                  type="text"
-                  name="baseUnit"
-                  value={formData.baseUnit}
-                  readOnly
-                  className="w-full input-field bg-gray-50"
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  Unidad base para conversiones automáticas
-                </p>
-              </div>
-
-              {/* Factor de Conversión */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Factor de Conversión
-                </label>
-                <input
-                  type="number"
-                  name="conversionFactor"
-                  value={formData.conversionFactor}
-                  readOnly
-                  className="w-full input-field bg-gray-50"
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  Factor automático: 1 {formData.unit} = {formData.conversionFactor} {formData.baseUnit}
-                </p>
-              </div>
-
               {/* Stock Mínimo */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -374,12 +325,30 @@ export function ProductosPage() {
               {/* Precio */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Precio Unitario
+                  Precio Unitario *
                 </label>
                 <input
                   type="number"
                   name="price"
                   value={formData.price}
+                  onChange={handleInputChange}
+                  required
+                  min="0"
+                  step="0.01"
+                  className="w-full input-field"
+                  placeholder="0.00"
+                />
+              </div>
+
+              {/* Costo */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Costo Unitario
+                </label>
+                <input
+                  type="number"
+                  name="cost"
+                  value={formData.cost}
                   onChange={handleInputChange}
                   min="0"
                   step="0.01"
@@ -427,13 +396,25 @@ export function ProductosPage() {
                 onClick={() => {
                   setShowForm(false)
                   setEditingProduct(null)
+                  resetForm()
                 }}
                 className="btn-secondary"
               >
                 Cancelar
               </Button>
-              <Button type="submit" className="btn-primary">
-                {editingProduct ? 'Actualizar Producto' : 'Crear Producto'}
+              <Button 
+                type="submit" 
+                className="btn-primary"
+                disabled={loading}
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                    {editingProduct ? 'Actualizando...' : 'Creando...'}
+                  </>
+                ) : (
+                  editingProduct ? 'Actualizar Producto' : 'Crear Producto'
+                )}
               </Button>
             </div>
           </form>
@@ -448,117 +429,126 @@ export function ProductosPage() {
           </h3>
         </div>
         
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="table-header">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Producto
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Tipo
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Unidad
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Stock
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Precio
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Acciones
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {filteredProducts.map((product) => {
-                const typeInfo = getInventoryTypeInfo(product.inventoryType)
-                const stockStatus = getStockStatus(product.currentStock, product.minStock)
-                const TypeIcon = typeInfo.icon
-                const StatusIcon = stockStatus.icon
-                
-                return (
-                  <tr key={product.id} className="hover:bg-gray-50 transition-colors duration-200">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div>
-                        <div className="text-sm font-medium text-gray-900">{product.name}</div>
-                        <div className="text-sm text-gray-500">{product.description}</div>
-                        <div className="text-xs text-gray-400">{product.category}</div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center space-x-2">
-                        <TypeIcon className={`w-4 h-4 ${typeInfo.color}`} />
-                        <span className="text-sm text-gray-900">{typeInfo.label}</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">
-                        {product.unit}
-                        {product.conversionFactor > 1 && (
-                          <span className="text-xs text-gray-500 ml-1">
-                            (1 = {product.conversionFactor} {product.baseUnit})
-                          </span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center space-x-2">
-                        <StatusIcon className={`w-4 h-4 ${stockStatus.color}`} />
-                        <div>
-                          <div className="text-sm font-medium text-gray-900">
-                            {product.currentStock} {product.unit}
-                          </div>
-                          <div className="text-xs text-gray-500">
-                            Mín: {product.minStock} {product.unit}
-                          </div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">
-                        ${product.price.toFixed(2)}
-                      </div>
-                      <div className="text-xs text-gray-500">
-                        {product.supplier}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      <div className="flex items-center space-x-2">
-                        <button
-                          onClick={() => handleEdit(product)}
-                          className="text-blue-600 hover:text-blue-900 transition-colors duration-200"
-                        >
-                          <Edit className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(product.id)}
-                          className="text-red-600 hover:text-red-900 transition-colors duration-200"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
-
-        {filteredProducts.length === 0 && (
+        {loading ? (
           <div className="text-center py-12">
-            <Package className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No hay productos</h3>
-            <p className="text-gray-500">
-              {searchTerm || filterType !== 'todos' 
-                ? 'No se encontraron productos con los filtros aplicados'
-                : 'Comienza creando tu primer producto'
-              }
-            </p>
+            <Loader2 className="w-8 h-8 animate-spin text-blue-500 mx-auto mb-4" />
+            <p className="text-gray-500">Cargando productos...</p>
           </div>
+        ) : (
+          <>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="table-header">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Producto
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Tipo
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Unidad
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Stock
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Precio
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Acciones
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {filteredProducts.map((product) => {
+                    const typeInfo = getInventoryTypeInfo(product.category)
+                    const stockStatus = getStockStatus(product.stock, product.minStock)
+                    const TypeIcon = typeInfo.icon
+                    const StatusIcon = stockStatus.icon
+                    
+                    return (
+                      <tr key={product._id} className="hover:bg-gray-50 transition-colors duration-200">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div>
+                            <div className="text-sm font-medium text-gray-900">{product.name}</div>
+                            <div className="text-sm text-gray-500">{product.description}</div>
+                            <div className="text-xs text-gray-400">{product.category}</div>
+                            {product.sku && (
+                              <div className="text-xs text-gray-400">SKU: {product.sku}</div>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center space-x-2">
+                            <TypeIcon className={`w-4 h-4 ${typeInfo.color}`} />
+                            <span className="text-sm text-gray-900">{typeInfo.label}</span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-900">
+                            {product.unit}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center space-x-2">
+                            <StatusIcon className={`w-4 h-4 ${stockStatus.color}`} />
+                            <div>
+                              <div className="text-sm font-medium text-gray-900">
+                                {product.stock} {product.unit}
+                              </div>
+                              <div className="text-xs text-gray-500">
+                                Mín: {product.minStock} {product.unit}
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-900">
+                            ${product.price.toFixed(2)}
+                          </div>
+                          {product.cost > 0 && (
+                            <div className="text-xs text-gray-500">
+                              Costo: ${product.cost.toFixed(2)}
+                            </div>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                          <div className="flex items-center space-x-2">
+                            <button
+                              onClick={() => handleEdit(product)}
+                              className="text-blue-600 hover:text-blue-900 transition-colors duration-200"
+                            >
+                              <Edit className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => handleDelete(product._id)}
+                              className="text-red-600 hover:text-red-900 transition-colors duration-200"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {filteredProducts.length === 0 && (
+              <div className="text-center py-12">
+                <Package className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No hay productos</h3>
+                <p className="text-gray-500">
+                  {searchTerm || filterType !== 'todos' 
+                    ? 'No se encontraron productos con los filtros aplicados'
+                    : 'Comienza creando tu primer producto'
+                  }
+                </p>
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>

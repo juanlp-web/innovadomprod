@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { 
   Plus, 
   Edit, 
@@ -11,104 +11,61 @@ import {
   CheckCircle,
   Clock,
   XCircle,
-  TrendingUp
+  TrendingUp,
+  AlertCircle
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { useSales } from '@/hooks/useSales'
+import { useClients } from '@/hooks/useClients'
+import { useProducts } from '@/hooks/useProducts'
 
 export function VentasPage() {
+  const { 
+    sales, 
+    loading, 
+    error, 
+    createSale, 
+    updatePaymentStatus, 
+    deleteSale, 
+    clearError 
+  } = useSales()
+  
+  const { clients, loading: clientsLoading } = useClients()
+  const { products, loading: productsLoading } = useProducts()
+  
   const [showForm, setShowForm] = useState(false)
   const [editingSale, setEditingSale] = useState(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [filterStatus, setFilterStatus] = useState('todos')
-  const [sales, setSales] = useState([
-    {
-      id: 1,
-      invoiceNumber: 'V-001',
-      customerName: 'María González',
-      customerEmail: 'maria@email.com',
-      customerPhone: '+1 809-555-0101',
-      products: [
-        { name: 'Crema Hidratante Facial', quantity: 2, price: 25.99, total: 51.98 },
-        { name: 'Mascarilla de Arcilla', quantity: 1, price: 18.50, total: 18.50 }
-      ],
-      subtotal: 70.48,
-      tax: 10.57,
-      total: 81.05,
-      status: 'completada',
-      paymentMethod: 'Tarjeta de Crédito',
-      saleDate: '2024-01-15',
-      deliveryDate: '2024-01-17',
-      notes: 'Cliente preferente, entrega a domicilio'
-    },
-    {
-      id: 2,
-      invoiceNumber: 'V-002',
-      customerName: 'Carlos Rodríguez',
-      customerEmail: 'carlos@email.com',
-      customerPhone: '+1 809-555-0102',
-      products: [
-        { name: 'Serum Vitamina C', quantity: 1, price: 32.99, total: 32.99 }
-      ],
-      subtotal: 32.99,
-      tax: 4.95,
-      total: 37.94,
-      status: 'pendiente',
-      paymentMethod: 'Efectivo',
-      saleDate: '2024-01-16',
-      deliveryDate: '2024-01-18',
-      notes: 'Pago pendiente de confirmación'
-    },
-    {
-      id: 3,
-      invoiceNumber: 'V-003',
-      customerName: 'Ana Martínez',
-      customerEmail: 'ana@email.com',
-      customerPhone: '+1 809-555-0103',
-      products: [
-        { name: 'Aceite Corporal Relajante', quantity: 3, price: 28.75, total: 86.25 },
-        { name: 'Shampoo Natural', quantity: 2, price: 22.00, total: 44.00 }
-      ],
-      subtotal: 130.25,
-      tax: 19.54,
-      total: 149.79,
-      status: 'en_proceso',
-      paymentMethod: 'Transferencia Bancaria',
-      saleDate: '2024-01-14',
-      deliveryDate: '2024-01-20',
-      notes: 'Productos en preparación'
-    }
-  ])
+  const [selectedClient, setSelectedClient] = useState('')
+  const [selectedProducts, setSelectedProducts] = useState([])
 
   const [formData, setFormData] = useState({
-    customerName: '',
-    customerEmail: '',
-    customerPhone: '',
-    products: [],
-    subtotal: 0,
-    tax: 0,
-    total: 0,
-    status: 'pendiente',
+    client: '',
+    items: [],
     paymentMethod: '',
-    saleDate: '',
-    deliveryDate: '',
-    notes: ''
+    notes: '',
+    dueDate: ''
   })
 
   const statuses = [
     { value: 'pendiente', label: 'Pendiente', color: 'text-yellow-600', bgColor: 'bg-yellow-50' },
-    { value: 'en_proceso', label: 'En Proceso', color: 'text-blue-600', bgColor: 'bg-blue-50' },
-    { value: 'completada', label: 'Completada', color: 'text-green-600', bgColor: 'bg-green-50' },
-    { value: 'cancelada', label: 'Cancelada', color: 'text-red-600', bgColor: 'bg-red-50' }
+    { value: 'pagado', label: 'Pagado', color: 'text-green-600', bgColor: 'bg-green-50' },
+    { value: 'parcial', label: 'Parcial', color: 'text-blue-600', bgColor: 'bg-blue-50' },
+    { value: 'cancelado', label: 'Cancelado', color: 'text-red-600', bgColor: 'bg-red-50' }
   ]
 
   const paymentMethods = [
-    'Efectivo',
-    'Tarjeta de Crédito',
-    'Tarjeta de Débito',
-    'Transferencia Bancaria',
-    'Cheque',
-    'PayPal'
+    { value: 'efectivo', label: 'Efectivo' },
+    { value: 'tarjeta', label: 'Tarjeta' },
+    { value: 'transferencia', label: 'Transferencia' },
+    { value: 'cheque', label: 'Cheque' }
   ]
+
+  // Limpiar error cuando se desmonte el componente
+  useEffect(() => {
+    return () => clearError()
+  }, [clearError])
 
   const handleInputChange = (e) => {
     const { name, value } = e.target
@@ -118,57 +75,149 @@ export function VentasPage() {
     }))
   }
 
-  const handleSubmit = (e) => {
+  const handleClientChange = (e) => {
+    const clientId = e.target.value
+    setSelectedClient(clientId)
+    setFormData(prev => ({
+      ...prev,
+      client: clientId
+    }))
+  }
+
+  const handleProductSelect = (productId) => {
+    const product = products.find(p => p._id === productId)
+    if (!product) return
+
+    const existingItem = selectedProducts.find(item => item.product === productId)
+    
+    if (existingItem) {
+      setSelectedProducts(prev => prev.map(item => 
+        item.product === productId 
+          ? { ...item, quantity: item.quantity + 1, total: (item.quantity + 1) * item.unitPrice }
+          : item
+      ))
+    } else {
+      setSelectedProducts(prev => [...prev, {
+        product: productId,
+        quantity: 1,
+        unitPrice: product.price,
+        total: product.price,
+        discount: 0
+      }])
+    }
+  }
+
+  const handleProductQuantityChange = (productId, newQuantity) => {
+    if (newQuantity <= 0) {
+      setSelectedProducts(prev => prev.filter(item => item.product !== productId))
+      return
+    }
+
+    setSelectedProducts(prev => prev.map(item => 
+      item.product === productId 
+        ? { ...item, quantity: newQuantity, total: newQuantity * item.unitPrice }
+        : item
+    ))
+  }
+
+  const handleProductPriceChange = (productId, newPrice) => {
+    setSelectedProducts(prev => prev.map(item => 
+      item.product === productId 
+        ? { ...item, unitPrice: newPrice, total: newPrice * item.quantity }
+        : item
+    ))
+  }
+
+  const handleProductDiscountChange = (productId, newDiscount) => {
+    setSelectedProducts(prev => prev.map(item => 
+      item.product === productId 
+        ? { ...item, discount: newDiscount, total: (item.unitPrice - newDiscount) * item.quantity }
+        : item
+    ))
+  }
+
+  const calculateTotals = () => {
+    const subtotal = selectedProducts.reduce((sum, item) => sum + item.total, 0)
+    const tax = subtotal * 0.16 // 16% IVA
+    const total = subtotal + tax
+    return { subtotal, tax, total }
+  }
+
+  const handleSubmit = async (e) => {
     e.preventDefault()
     
-    if (editingSale) {
-      setSales(prev => prev.map(sale => 
-        sale.id === editingSale.id ? { ...formData, id: sale.id } : sale
-      ))
-      setEditingSale(null)
-    } else {
-      const newSale = {
-        ...formData,
-        id: Date.now(),
-        invoiceNumber: `V-${String(Date.now()).slice(-3)}`,
-        saleDate: new Date().toISOString().split('T')[0]
-      }
-      setSales(prev => [...prev, newSale])
+    if (!formData.client) {
+      alert('Debe seleccionar un cliente')
+      return
     }
     
-    setFormData({
-      customerName: '',
-      customerEmail: '',
-      customerPhone: '',
-      products: [],
-      subtotal: 0,
-      tax: 0,
-      total: 0,
-      status: 'pendiente',
-      paymentMethod: '',
-      saleDate: '',
-      deliveryDate: '',
-      notes: ''
-    })
-    setShowForm(false)
+    if (selectedProducts.length === 0) {
+      alert('Debe agregar al menos un producto')
+      return
+    }
+
+    try {
+      const saleData = {
+        ...formData,
+        items: selectedProducts,
+        dueDate: formData.dueDate || null
+      }
+
+      await createSale(saleData)
+      
+      // Limpiar formulario
+      setFormData({
+        client: '',
+        items: [],
+        paymentMethod: '',
+        notes: '',
+        dueDate: ''
+      })
+      setSelectedClient('')
+      setSelectedProducts([])
+      setShowForm(false)
+    } catch (err) {
+      console.error('Error al crear venta:', err)
+    }
   }
 
   const handleEdit = (sale) => {
     setEditingSale(sale)
-    setFormData(sale)
+    setFormData({
+      client: sale.client._id || sale.client,
+      items: sale.items || [],
+      paymentMethod: sale.paymentMethod || '',
+      notes: sale.notes || '',
+      dueDate: sale.dueDate ? new Date(sale.dueDate).toISOString().split('T')[0] : ''
+    })
+    setSelectedClient(sale.client._id || sale.client)
+    setSelectedProducts(sale.items || [])
     setShowForm(true)
   }
 
-  const handleDelete = (saleId) => {
+  const handleDelete = async (saleId) => {
     if (window.confirm('¿Está seguro de que desea eliminar esta venta?')) {
-      setSales(prev => prev.filter(sale => sale.id !== saleId))
+      try {
+        await deleteSale(saleId)
+      } catch (err) {
+        console.error('Error al eliminar venta:', err)
+      }
+    }
+  }
+
+  const handleStatusChange = async (saleId, newStatus) => {
+    try {
+      await updatePaymentStatus(saleId, newStatus)
+    } catch (err) {
+      console.error('Error al actualizar estado:', err)
     }
   }
 
   const filteredSales = sales.filter(sale => {
-    const matchesSearch = sale.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         sale.invoiceNumber.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesFilter = filterStatus === 'todos' || sale.status === filterStatus
+    const matchesSearch = 
+      (sale.client?.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (sale.invoiceNumber || '').toLowerCase().includes(searchTerm.toLowerCase())
+    const matchesFilter = filterStatus === 'todos' || sale.paymentStatus === filterStatus
     return matchesSearch && matchesFilter
   })
 
@@ -178,10 +227,10 @@ export function VentasPage() {
 
   const getStatusIcon = (status) => {
     switch (status) {
-      case 'completada': return CheckCircle
-      case 'en_proceso': return Clock
+      case 'pagado': return CheckCircle
+      case 'parcial': return Clock
       case 'pendiente': return Clock
-      case 'cancelada': return XCircle
+      case 'cancelado': return XCircle
       default: return Clock
     }
   }
@@ -191,6 +240,33 @@ export function VentasPage() {
       style: 'currency',
       currency: 'DOP'
     }).format(amount)
+  }
+
+  const getClientName = (clientId) => {
+    if (typeof clientId === 'string') {
+      const client = clients.find(c => c._id === clientId)
+      return client ? client.name : 'Cliente no encontrado'
+    }
+    return clientId?.name || 'Cliente no encontrado'
+  }
+
+  const getProductName = (productId) => {
+    if (typeof productId === 'string') {
+      const product = products.find(p => p._id === productId)
+      return product ? product.name : 'Producto no encontrado'
+    }
+    return productId?.name || 'Producto no encontrado'
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Cargando ventas...</p>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -209,6 +285,25 @@ export function VentasPage() {
           <span>Nueva Venta</span>
         </Button>
       </div>
+
+      {/* Mostrar error si existe */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center space-x-3">
+          <AlertCircle className="w-5 h-5 text-red-500" />
+          <div>
+            <p className="text-red-800 font-medium">Error</p>
+            <p className="text-red-600 text-sm">{error}</p>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={clearError}
+            className="text-red-500 hover:text-red-700"
+          >
+            <XCircle className="w-4 h-4" />
+          </Button>
+        </div>
+      )}
 
       {/* Filtros y Búsqueda */}
       <div className="flex flex-col sm:flex-row gap-4">
@@ -247,19 +342,14 @@ export function VentasPage() {
                 setShowForm(false)
                 setEditingSale(null)
                 setFormData({
-                  customerName: '',
-                  customerEmail: '',
-                  customerPhone: '',
-                  products: [],
-                  subtotal: 0,
-                  tax: 0,
-                  total: 0,
-                  status: 'pendiente',
+                  client: '',
+                  items: [],
                   paymentMethod: '',
-                  saleDate: '',
-                  deliveryDate: '',
-                  notes: ''
+                  notes: '',
+                  dueDate: ''
                 })
+                setSelectedClient('')
+                setSelectedProducts([])
               }}
             >
               <XCircle className="w-5 h-5" />
@@ -268,116 +358,171 @@ export function VentasPage() {
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Información del Cliente */}
+              {/* Selección de Cliente */}
               <div className="md:col-span-2">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Información del Cliente</h3>
-              </div>
-
-              {/* Nombre del Cliente */}
-              <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Nombre del Cliente *
+                  Cliente *
                 </label>
-                <input
-                  type="text"
-                  name="customerName"
-                  value={formData.customerName}
-                  onChange={handleInputChange}
+                <select
+                  name="client"
+                  value={selectedClient}
+                  onChange={handleClientChange}
                   required
                   className="w-full input-field"
-                  placeholder="Nombre completo del cliente"
-                />
-              </div>
-
-              {/* Email del Cliente */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Email del Cliente
-                </label>
-                <input
-                  type="email"
-                  name="customerEmail"
-                  value={formData.customerEmail}
-                  onChange={handleInputChange}
-                  className="w-full input-field"
-                  placeholder="cliente@email.com"
-                />
-              </div>
-
-              {/* Teléfono del Cliente */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Teléfono del Cliente
-                </label>
-                <input
-                  type="tel"
-                  name="customerPhone"
-                  value={formData.customerPhone}
-                  onChange={handleInputChange}
-                  className="w-full input-field"
-                  placeholder="+1 809-555-0100"
-                />
+                >
+                  <option value="">Seleccionar cliente</option>
+                  {clients.map(client => (
+                    <option key={client._id} value={client._id}>
+                      {client.name} - {client.email}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               {/* Método de Pago */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Método de Pago
+                  Método de Pago *
                 </label>
                 <select
                   name="paymentMethod"
                   value={formData.paymentMethod}
                   onChange={handleInputChange}
+                  required
                   className="w-full input-field"
                 >
                   <option value="">Seleccionar método</option>
                   {paymentMethods.map(method => (
-                    <option key={method} value={method}>{method}</option>
+                    <option key={method.value} value={method.value}>{method.label}</option>
                   ))}
                 </select>
               </div>
 
-              {/* Estado de la Venta */}
+              {/* Fecha de Vencimiento */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Estado de la Venta *
-                </label>
-                <select
-                  name="status"
-                  value={formData.status}
-                  onChange={handleInputChange}
-                  required
-                  className="w-full input-field"
-                >
-                  {statuses.map(status => (
-                    <option key={status.value} value={status.value}>{status.label}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Fecha de Entrega */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Fecha de Entrega
+                  Fecha de Vencimiento
                 </label>
                 <input
                   type="date"
-                  name="deliveryDate"
-                  value={formData.deliveryDate}
+                  name="dueDate"
+                  value={formData.dueDate}
                   onChange={handleInputChange}
                   className="w-full input-field"
                 />
               </div>
             </div>
 
-            {/* Productos (simplificado para el ejemplo) */}
+            {/* Selección de Productos */}
             <div>
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Productos</h3>
-              <div className="bg-gray-50 rounded-lg p-4">
-                <p className="text-sm text-gray-600">
-                  {editingSale ? 'Edición de productos no disponible en esta versión' : 'Los productos se pueden agregar después de crear la venta'}
-                </p>
+              
+              {/* Selector de productos */}
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Agregar Producto
+                </label>
+                <select
+                  onChange={(e) => handleProductSelect(e.target.value)}
+                  className="w-full input-field"
+                  defaultValue=""
+                >
+                  <option value="">Seleccionar producto</option>
+                  {products.map(product => (
+                    <option key={product._id} value={product._id}>
+                      {product.name} - Precio: {formatCurrency(product.price)} - Stock: {product.stock || 0}
+                    </option>
+                  ))}
+                </select>
               </div>
+
+              {/* Lista de productos seleccionados */}
+              {selectedProducts.length > 0 && (
+                <div className="space-y-3">
+                  <h4 className="font-medium text-gray-900">Productos Seleccionados:</h4>
+                  {selectedProducts.map((item, index) => (
+                    <div key={index} className="bg-gray-50 rounded-lg p-4 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="font-medium">{getProductName(item.product)}</span>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setSelectedProducts(prev => prev.filter((_, i) => i !== index))}
+                          className="text-red-500 hover:text-red-700"
+                        >
+                          <XCircle className="w-4 h-4" />
+                        </Button>
+                      </div>
+                      
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        <div>
+                          <label className="block text-xs text-gray-600 mb-1">Cantidad</label>
+                          <input
+                            type="number"
+                            min="1"
+                            value={item.quantity}
+                            onChange={(e) => handleProductQuantityChange(item.product, parseInt(e.target.value))}
+                            className="w-full input-field text-sm"
+                          />
+                        </div>
+                        
+                        <div>
+                          <label className="block text-xs text-gray-600 mb-1">Precio Unitario</label>
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={item.unitPrice}
+                            onChange={(e) => handleProductPriceChange(item.product, parseFloat(e.target.value))}
+                            className="w-full input-field text-sm"
+                          />
+                        </div>
+                        
+                        <div>
+                          <label className="block text-xs text-gray-600 mb-1">Descuento</label>
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={item.discount}
+                            onChange={(e) => handleProductDiscountChange(item.product, parseFloat(e.target.value))}
+                            className="w-full input-field text-sm"
+                          />
+                        </div>
+                        
+                        <div>
+                          <label className="block text-xs text-gray-600 mb-1">Total</label>
+                          <div className="text-sm font-medium text-gray-900">
+                            {formatCurrency(item.total)}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Totales */}
+              {selectedProducts.length > 0 && (
+                <div className="bg-blue-50 rounded-lg p-4">
+                  <h4 className="font-medium text-gray-900 mb-3">Resumen de Totales</h4>
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <span>Subtotal:</span>
+                      <span className="font-medium">{formatCurrency(calculateTotals().subtotal)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>IVA (16%):</span>
+                      <span className="font-medium">{formatCurrency(calculateTotals().tax)}</span>
+                    </div>
+                    <div className="flex justify-between text-lg font-bold text-blue-900">
+                      <span>Total:</span>
+                      <span>{formatCurrency(calculateTotals().total)}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Notas */}
@@ -403,6 +548,15 @@ export function VentasPage() {
                 onClick={() => {
                   setShowForm(false)
                   setEditingSale(null)
+                  setFormData({
+                    client: '',
+                    items: [],
+                    paymentMethod: '',
+                    notes: '',
+                    dueDate: ''
+                  })
+                  setSelectedClient('')
+                  setSelectedProducts([])
                 }}
                 className="btn-secondary"
               >
@@ -411,6 +565,7 @@ export function VentasPage() {
               <Button 
                 type="submit" 
                 className="btn-primary shadow-medium hover:shadow-strong transform hover:-translate-y-1 transition-all duration-300"
+                disabled={!selectedClient || selectedProducts.length === 0}
               >
                 {editingSale ? 'Actualizar Venta' : 'Crear Venta'}
               </Button>
@@ -456,31 +611,32 @@ export function VentasPage() {
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredSales.map((sale) => {
-                const statusInfo = getStatusInfo(sale.status)
-                const StatusIcon = getStatusIcon(sale.status)
+                const statusInfo = getStatusInfo(sale.paymentStatus)
+                const StatusIcon = getStatusIcon(sale.paymentStatus)
                 
                 return (
-                  <tr key={sale.id} className="hover:bg-gray-50 transition-colors duration-200">
+                  <tr key={sale._id} className="hover:bg-gray-50 transition-colors duration-200">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div>
                         <div className="text-sm font-medium text-gray-900">{sale.invoiceNumber}</div>
                         <div className="text-xs text-gray-500">
-                          {sale.paymentMethod} • {sale.products.length} productos
+                          {paymentMethods.find(m => m.value === sale.paymentMethod)?.label || sale.paymentMethod} • {sale.items?.length || 0} productos
                         </div>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div>
-                        <div className="text-sm font-medium text-gray-900">{sale.customerName}</div>
-                        <div className="text-xs text-gray-500">{sale.customerEmail}</div>
-                        <div className="text-xs text-gray-500">{sale.customerPhone}</div>
+                        <div className="text-sm font-medium text-gray-900">{getClientName(sale.client)}</div>
+                        <div className="text-xs text-gray-500">
+                          {sale.client?.email || 'Email no disponible'}
+                        </div>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="space-y-1">
-                        {sale.products.map((product, index) => (
+                        {sale.items?.map((item, index) => (
                           <div key={index} className="text-xs text-gray-600">
-                            {product.quantity}x {product.name}
+                            {item.quantity}x {getProductName(item.product)}
                           </div>
                         ))}
                       </div>
@@ -500,20 +656,29 @@ export function VentasPage() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center space-x-2">
-                        <StatusIcon className={`w-4 h-4 ${statusInfo.color}`} />
-                        <span className={`text-sm font-medium ${statusInfo.color}`}>
-                          {statusInfo.label}
+                        <StatusIcon className={`w-4 h-4 ${statusInfo?.color}`} />
+                        <span className={`text-sm font-medium ${statusInfo?.color}`}>
+                          {statusInfo?.label}
                         </span>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-xs text-gray-600">
-                        <div>Venta: {sale.saleDate}</div>
-                        <div>Entrega: {sale.deliveryDate || 'No definida'}</div>
+                        <div>Venta: {new Date(sale.saleDate).toLocaleDateString('es-DO')}</div>
+                        <div>Vencimiento: {sale.dueDate ? new Date(sale.dueDate).toLocaleDateString('es-DO') : 'No definida'}</div>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <div className="flex items-center space-x-2">
+                        <select
+                          value={sale.paymentStatus}
+                          onChange={(e) => handleStatusChange(sale._id, e.target.value)}
+                          className="text-xs border border-gray-300 rounded px-2 py-1"
+                        >
+                          {statuses.map(status => (
+                            <option key={status.value} value={status.value}>{status.label}</option>
+                          ))}
+                        </select>
                         <button
                           onClick={() => handleEdit(sale)}
                           className="text-blue-600 hover:text-blue-900 transition-colors duration-200"
@@ -522,7 +687,7 @@ export function VentasPage() {
                           <Edit className="w-4 h-4" />
                         </button>
                         <button
-                          onClick={() => handleDelete(sale.id)}
+                          onClick={() => handleDelete(sale._id)}
                           className="text-red-600 hover:text-red-900 transition-colors duration-200"
                           title="Eliminar"
                         >

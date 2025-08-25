@@ -1,2 +1,123 @@
-/* App-specific styles can be added here */
-/* This file is kept minimal to avoid conflicts with Tailwind CSS */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Estilos personalizados para el sidebar */
+.sidebar-item {
+  @apply flex items-center w-full px-4 py-3 text-left text-gray-700 rounded-lg transition-all duration-200 hover:bg-blue-50 hover:text-blue-700;
+}
+
+.sidebar-item.active {
+  @apply bg-blue-100 text-blue-700 border-r-2 border-blue-500;
+}
+
+/* Estilos para el layout principal */
+.main-content {
+  @apply transition-all duration-300 ease-in-out;
+}
+
+/* Estilos para el breadcrumb */
+.breadcrumb-item {
+  @apply hover:text-blue-600 transition-colors duration-200;
+}
+
+/* Estilos para botones */
+.btn-primary {
+  @apply bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200;
+}
+
+/* Estilos para inputs */
+.input-field {
+  @apply w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200;
+}
+
+/* Estilos para cards */
+.card {
+  @apply bg-white rounded-xl shadow-soft border border-gray-100;
+}
+
+.card-hover {
+  @apply hover:shadow-medium transition-shadow duration-200;
+}
+
+/* Estilos para sombras */
+.shadow-soft {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.shadow-medium {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+}
+
+.shadow-strong {
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.16);
+}
+
+/* Estilos para gradientes */
+.gradient-primary {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+/* Estilos para animaciones */
+.animate-fade-in {
+  animation: fadeIn 0.6s ease-in-out;
+}
+
+.animate-slide-up {
+  animation: slideUp 0.6s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Estilos para el sidebar colapsado */
+.sidebar-collapsed {
+  @apply w-20;
+}
+
+.sidebar-expanded {
+  @apply w-72;
+}
+
+/* Estilos para el contenido principal ajustado */
+.content-adjusted {
+  @apply transition-all duration-300 ease-in-out;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .sidebar-expanded {
+    @apply w-64;
+  }
+  
+  .content-adjusted {
+    @apply ml-64;
+  }
+}
+
+@media (max-width: 640px) {
+  .sidebar-expanded {
+    @apply w-56;
+  }
+  
+  .content-adjusted {
+    @apply ml-56;
+  }
+}

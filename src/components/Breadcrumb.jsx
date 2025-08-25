@@ -18,27 +18,25 @@ export function Breadcrumb() {
         path: '/dashboard',
         isActive: pathnames.length === 1
       })
-      
-      // Agregar la página actual si no es dashboard
-      if (pathnames.length > 1) {
-        const currentPage = pathnames[1]
-        const pageNames = {
-          'recetas': 'Recetas',
-          'productos': 'Productos',
-          'inventario': 'Inventario',
-          'ventas': 'Ventas',
-          'compras': 'Compras',
-          'clientes': 'Clientes',
-          'proveedores': 'Proveedores',
-          'perfil': 'Perfil'
-        }
-        
-        breadcrumbItems.push({
-          name: pageNames[currentPage] || currentPage,
-          path: `/dashboard/${currentPage}`,
-          isActive: true
-        })
+    } else if (pathnames[0] !== 'login') {
+      // Si no es dashboard ni login, agregar la página actual
+      const currentPage = pathnames[0]
+      const pageNames = {
+        'recetas': 'Recetas',
+        'productos': 'Productos',
+        'inventario': 'Inventario',
+        'ventas': 'Ventas',
+        'compras': 'Compras',
+        'clientes': 'Clientes',
+        'proveedores': 'Proveedores',
+        'perfil': 'Perfil'
       }
+      
+      breadcrumbItems.push({
+        name: pageNames[currentPage] || currentPage,
+        path: `/${currentPage}`,
+        isActive: true
+      })
     }
     
     return breadcrumbItems

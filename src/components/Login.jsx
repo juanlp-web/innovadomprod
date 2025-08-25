@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
+import { useAuth } from '@/contexts/AuthContext'
 import { 
   BarChart3, 
   User, 
@@ -9,13 +10,19 @@ import {
   Loader2
 } from 'lucide-react'
 
-export function Login({ onLogin, onForgotPassword }) {
+export function Login({ onForgotPassword }) {
+  const { login, user } = useAuth();
   const [formData, setFormData] = useState({
     username: '',
     password: ''
   })
   const [isLoading, setIsLoading] = useState(false)
   const [errors, setErrors] = useState({})
+
+  // Log del estado del usuario
+  useEffect(() => {
+    console.log('🔍 Login component - Estado del usuario:', user);
+  }, [user]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target
@@ -48,13 +55,29 @@ export function Login({ onLogin, onForgotPassword }) {
     e.preventDefault()
     if (!validateForm()) return
 
+    console.log('📝 Enviando formulario de login...');
     setIsLoading(true)
     try {
-      // Simular llamada a API
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      onLogin(formData)
+      // Usar el hook de autenticación
+      const result = await login({
+        email: formData.username,
+        password: formData.password
+      });
+
+      console.log('📡 Resultado del login:', result);
+
+      if (result.success) {
+        console.log('✅ Login exitoso, limpiando errores...');
+        setErrors({});
+        // El hook se encarga de establecer el usuario
+        // React Router debería detectar el cambio y redirigir
+      } else {
+        console.log('❌ Login fallido:', result.message);
+        setErrors({ general: result.message });
+      }
     } catch (error) {
-      setErrors({ general: 'Error al iniciar sesión. Intente nuevamente.' })
+      console.error('💥 Error de login:', error);
+      setErrors({ general: 'Error inesperado durante el login' });
     } finally {
       setIsLoading(false)
     }
@@ -168,6 +191,14 @@ export function Login({ onLogin, onForgotPassword }) {
             © 2024 Innovadom. Todos los derechos reservados.
           </p>
         </div>
+
+        {/* Debug info */}
+        {process.env.NODE_ENV === 'development' && (
+          <div className="mt-4 p-2 bg-gray-100 rounded text-xs text-gray-600">
+            <p>Debug: Usuario actual: {user ? user.name : 'No logueado'}</p>
+            <p>Debug: Estado: {user ? 'Autenticado' : 'No autenticado'}</p>
+          </div>
+        )}
       </div>
     </div>
   )

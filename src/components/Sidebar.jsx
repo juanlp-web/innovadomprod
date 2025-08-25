@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import {
   BarChart3,
@@ -14,32 +15,47 @@ import {
   ChevronRight
 } from 'lucide-react'
 
-export function Sidebar({ activeTab, onTabChange, onLogout, userData, onCollapseChange }) {
+export function Sidebar({ onLogout, userData, onCollapseChange }) {
   const [isCollapsed, setIsCollapsed] = useState(false)
+  const navigate = useNavigate()
+  const location = useLocation()
+
+  // Notificar al componente padre cuando cambie el estado
+  useEffect(() => {
+    if (onCollapseChange) {
+      onCollapseChange(isCollapsed)
+    }
+  }, [isCollapsed, onCollapseChange])
 
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: BarChart3, description: 'Vista general del negocio', path: '/dashboard' },
-    { id: 'recetas', label: 'Recetas', icon: FileText, description: 'Gestión de formulaciones', path: '/dashboard/recetas' },
-    { id: 'productos', label: 'Productos', icon: Package, description: 'Catálogo de productos', path: '/dashboard/productos' },
-    { id: 'inventario', label: 'Inventario', icon: Box, description: 'Control de stock', path: '/dashboard/inventario' },
-    { id: 'ventas', label: 'Ventas', icon: DollarSign, description: 'Registro de ventas', path: '/dashboard/ventas' },
-    { id: 'compras', label: 'Compras', icon: ShoppingCart, description: 'Gestión de compras', path: '/dashboard/compras' },
-    { id: 'clientes', label: 'Clientes', icon: Users, description: 'Base de clientes', path: '/dashboard/clientes' },
-    { id: 'proveedores', label: 'Proveedores', icon: Factory, description: 'Gestión de proveedores', path: '/dashboard/proveedores' },
-    { id: 'perfil', label: 'Perfil', icon: User, description: 'Configuración personal', path: '/dashboard/perfil' }
+    { id: 'recetas', label: 'Recetas', icon: FileText, description: 'Gestión de formulaciones', path: '/recetas' },
+    { id: 'productos', label: 'Productos', icon: Package, description: 'Catálogo de productos', path: '/productos' },
+    { id: 'inventario', label: 'Inventario', icon: Box, description: 'Control de stock', path: '/inventario' },
+    { id: 'ventas', label: 'Ventas', icon: DollarSign, description: 'Registro de ventas', path: '/ventas' },
+    { id: 'compras', label: 'Compras', icon: ShoppingCart, description: 'Gestión de compras', path: '/compras' },
+    { id: 'clientes', label: 'Clientes', icon: Users, description: 'Base de clientes', path: '/clientes' },
+    { id: 'proveedores', label: 'Proveedores', icon: Factory, description: 'Gestión de proveedores', path: '/proveedores' },
+    { id: 'perfil', label: 'Perfil', icon: User, description: 'Configuración personal', path: '/perfil' }
   ]
 
   const handleCollapse = () => {
     const newCollapsed = !isCollapsed
     setIsCollapsed(newCollapsed)
-    if (onCollapseChange) {
-      onCollapseChange(newCollapsed)
-    }
   }
 
   const handleMenuClick = (item) => {
-    onTabChange(item.id)
+    navigate(item.path)
   }
+
+  // Determinar la pestaña activa basada en la ruta actual
+  const getActiveTab = () => {
+    const currentPath = location.pathname
+    const menuItem = menuItems.find(item => item.path === currentPath)
+    return menuItem ? menuItem.id : 'dashboard'
+  }
+
+  const activeTab = getActiveTab()
 
   return (
     <div className={`bg-white shadow-soft transition-all duration-300 ${
