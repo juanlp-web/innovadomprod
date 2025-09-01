@@ -78,6 +78,13 @@ export function RecetasPage() {
     cookingTime: '',
     servings: '',
     productToProduce: null, // Producto que se produce con esta receta
+    batchInfo: {
+      batchNumber: '',
+      productionDate: new Date(),
+      expirationDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 días por defecto
+      quantity: '',
+      unit: 'unidad'
+    },
     ingredients: [],
     instructions: [],
     cost: 0,
@@ -102,11 +109,23 @@ export function RecetasPage() {
 
   const units = ['g', 'kg', 'ml', 'l', 'unidad', 'docena', 'caja', 'gotas']
 
+  const batchUnits = ['unidad', 'docena', 'caja', 'kg', 'g', 'l', 'ml']
+
   const handleInputChange = (e) => {
     const { name, value } = e.target
     setFormData(prev => ({
       ...prev,
       [name]: value
+    }))
+  }
+
+  const handleBatchInfoChange = (field, value) => {
+    setFormData(prev => ({
+      ...prev,
+      batchInfo: {
+        ...prev.batchInfo,
+        [field]: value
+      }
     }))
   }
 
@@ -283,6 +302,12 @@ export function RecetasPage() {
         return
       }
 
+      // Validar información del lote
+      if (!formData.batchInfo.expirationDate || !formData.batchInfo.quantity || !formData.batchInfo.unit) {
+        showError('Debe completar la información del lote: fecha de vencimiento, cantidad y unidad.')
+        return
+      }
+
       // Validar que al menos un ingrediente tenga un producto seleccionado o sea genérico
       const validIngredients = formData.ingredients.filter(ing => ing.product || (ing.name && ing.quantity))
       if (validIngredients.length === 0) {
@@ -294,6 +319,11 @@ export function RecetasPage() {
       const recipeData = {
         ...formData,
         productToProduce: formData.productToProduce._id, // ID del producto a producir
+        batchInfo: {
+          ...formData.batchInfo,
+          productionDate: formData.batchInfo.productionDate,
+          expirationDate: formData.batchInfo.expirationDate
+        },
         cost: calculateTotalCost(validIngredients), // Usar el costo total calculado automáticamente
         createdBy: user._id, // ID del usuario autenticado
         ingredients: validIngredients.map(ing => {
@@ -342,6 +372,13 @@ export function RecetasPage() {
         cookingTime: '',
         servings: '',
         productToProduce: null,
+        batchInfo: {
+          batchNumber: '',
+          productionDate: new Date(),
+          expirationDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+          quantity: '',
+          unit: 'unidad'
+        },
         ingredients: [],
         instructions: [],
         cost: 0,
@@ -386,6 +423,13 @@ export function RecetasPage() {
         cookingTime: recipe.cookingTime || '',
         servings: recipe.servings || '',
         productToProduce: productToProduce, // Producto completo
+        batchInfo: recipe.batchInfo || {
+          batchNumber: '',
+          productionDate: new Date(),
+          expirationDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+          quantity: '',
+          unit: 'unidad'
+        },
         ingredients: recipe.ingredients?.map(ing => {
           if (ing.product) {
             // Ingrediente con producto del inventario
@@ -434,15 +478,12 @@ export function RecetasPage() {
     
     // Si ya tenemos productos, mapear inmediatamente
     if (products.length > 0) {
-      console.log('Productos disponibles, mapeando receta...', products.length)
       mapRecipeData()
     } else {
-      console.log('Esperando productos para mapear receta...')
       // Si no tenemos productos, esperar a que se carguen
       const checkProducts = setInterval(() => {
         if (products.length > 0) {
           clearInterval(checkProducts)
-          console.log('Productos cargados, mapeando receta...', products.length)
           mapRecipeData()
         }
       }, 100)
@@ -451,7 +492,6 @@ export function RecetasPage() {
       setTimeout(() => {
         clearInterval(checkProducts)
         if (products.length === 0) {
-          console.log('Timeout: Mapeando receta sin productos...')
           // Mapear con datos básicos si no se cargaron productos
           mapRecipeData()
         }
@@ -713,13 +753,13 @@ export function RecetasPage() {
       )}
 
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">Gestión de Recetas</h1>
-          <p className="text-gray-600">Administra formulaciones y recetas de productos</p>
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+        <div className="flex-1">
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 mb-2">Gestión de Recetas</h1>
+          <p className="text-gray-600 text-sm sm:text-base">Administra formulaciones y recetas de productos</p>
           
           {/* Contadores por Estado */}
-          <div className="flex items-center space-x-4 mt-3 text-sm">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 mt-3 text-xs sm:text-sm">
             <div className="flex items-center space-x-2">
               <div className="w-3 h-3 bg-yellow-400 rounded-full"></div>
               <span className="text-gray-600">
@@ -740,38 +780,41 @@ export function RecetasPage() {
             </div>
           </div>
           
-                     {/* Información sobre Stock */}
-           <div className="mt-2 p-2 bg-amber-50 border border-amber-200 rounded text-xs text-amber-800">
-             <div className="flex items-center space-x-2">
-               <AlertCircle className="w-4 h-4 text-amber-600" />
-               <span>
-                 <strong>Gestión de Stock:</strong> Las recetas "Completadas" aumentan el stock del producto producido y consumen ingredientes del inventario. Cambiar su estado desde "Completada" lo revierte automáticamente.
-               </span>
-             </div>
-           </div>
+          {/* Información sobre Stock */}
+          <div className="mt-2 p-2 bg-amber-50 border border-amber-200 rounded text-xs text-amber-800">
+            <div className="flex items-start space-x-2">
+              <AlertCircle className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
+              <span className="text-xs leading-relaxed">
+                <strong>Gestión de Stock:</strong> Las recetas "Completadas" aumentan el stock del producto producido y consumen ingredientes del inventario. Cambiar su estado desde "Completada" lo revierte automáticamente.
+              </span>
+            </div>
+          </div>
         </div>
-        <Button 
-          onClick={() => {
-            setShowForm(true)
-            info('Formulario de nueva receta abierto')
-          }}
-          disabled={loading}
-          className="btn-primary flex items-center space-x-2 shadow-medium hover:shadow-strong transform hover:-translate-y-1 transition-all duration-300"
-        >
-          {loading ? (
-            <Loader2 className="w-5 h-5 animate-spin" />
-          ) : (
-            <Plus className="w-5 h-5" />
-          )}
-          <span>{loading ? 'Cargando...' : 'Nueva Receta'}</span>
-        </Button>
+        <div className="flex-shrink-0">
+          <Button 
+            onClick={() => {
+              setShowForm(true)
+              info('Formulario de nueva receta abierto')
+            }}
+            disabled={loading}
+            className="w-full sm:w-auto btn-primary flex items-center justify-center space-x-2 shadow-medium hover:shadow-strong transform hover:-translate-y-1 transition-all duration-300"
+          >
+            {loading ? (
+              <Loader2 className="w-5 h-5 animate-spin" />
+            ) : (
+              <Plus className="w-5 h-5" />
+            )}
+            <span className="hidden sm:inline">{loading ? 'Cargando...' : 'Nueva Receta'}</span>
+            <span className="sm:hidden">{loading ? '...' : 'Nueva'}</span>
+          </Button>
+        </div>
       </div>
 
       {/* Filtros y Búsqueda */}
-      <div className="card card-hover p-6">
-        <div className="flex flex-col lg:flex-row gap-4">
+      <div className="card card-hover p-4 sm:p-6">
+        <div className="flex flex-col gap-4">
           {/* Búsqueda */}
-          <div className="flex-1 relative">
+          <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
             <input
               type="text"
@@ -783,11 +826,11 @@ export function RecetasPage() {
           </div>
           
           {/* Filtros */}
-          <div className="flex flex-wrap gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             <select
               value={filterCategory}
               onChange={(e) => setFilterCategory(e.target.value)}
-              className="px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 sm:px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
             >
               <option value="todos">Todas las categorías</option>
               {categories.map(category => (
@@ -798,7 +841,7 @@ export function RecetasPage() {
             <select
               value={filterDifficulty}
               onChange={(e) => setFilterDifficulty(e.target.value)}
-              className="px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 sm:px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
             >
               <option value="todos">Todas las dificultades</option>
               {difficulties.map(difficulty => (
@@ -809,14 +852,13 @@ export function RecetasPage() {
             <select
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
-              className="px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 sm:px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
             >
               <option value="todos">Todos los estados</option>
               <option value="en_preparacion">En Preparación</option>
               <option value="completada">Completada</option>
               <option value="descartada">Descartada</option>
             </select>
-
           </div>
         </div>
       </div>
@@ -875,8 +917,8 @@ export function RecetasPage() {
              </div>
 
             {/* Información Básica */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <div className="md:col-span-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+              <div className="sm:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Nombre de la Receta *
                 </label>
@@ -891,7 +933,7 @@ export function RecetasPage() {
                 />
               </div>
 
-              <div className="md:col-span-2">
+              <div className="sm:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Descripción
                 </label>
@@ -961,7 +1003,7 @@ export function RecetasPage() {
                   Por defecto: En Preparación
                 </p>
               </div>
-                         </div>
+            </div>
 
              {/* Producto a Producir */}
              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -1008,8 +1050,71 @@ export function RecetasPage() {
                  </div>
                </div>
 
+             {/* Información del Lote */}
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+               <div>
+                 <label className="block text-sm font-medium text-gray-700 mb-2">
+                   Cantidad a Producir *
+                 </label>
+                 <input
+                   type="number"
+                   value={formData.batchInfo.quantity}
+                   onChange={(e) => handleBatchInfoChange('quantity', e.target.value)}
+                   required
+                   min="1"
+                   className="w-full input-field"
+                   placeholder="100"
+                 />
+               </div>
+               <div>
+                 <label className="block text-sm font-medium text-gray-700 mb-2">
+                   Unidad del Lote *
+                 </label>
+                 <select
+                   value={formData.batchInfo.unit}
+                   onChange={(e) => handleBatchInfoChange('unit', e.target.value)}
+                   className="w-full input-field"
+                   required
+                 >
+                   {batchUnits.map(unit => (
+                     <option key={unit} value={unit}>{unit}</option>
+                   ))}
+                 </select>
+               </div>
+             </div>
+
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+               <div>
+                 <label className="block text-sm font-medium text-gray-700 mb-2">
+                   Fecha de Producción
+                 </label>
+                 <input
+                   type="date"
+                   value={formData.batchInfo.productionDate ? new Date(formData.batchInfo.productionDate).toISOString().split('T')[0] : ''}
+                   onChange={(e) => handleBatchInfoChange('productionDate', new Date(e.target.value))}
+                   className="w-full input-field"
+                 />
+                 <p className="text-xs text-gray-500 mt-1">
+                   Por defecto: Hoy
+                 </p>
+               </div>
+               <div>
+                 <label className="block text-sm font-medium text-gray-700 mb-2">
+                   Fecha de Vencimiento *
+                 </label>
+                 <input
+                   type="date"
+                   value={formData.batchInfo.expirationDate ? new Date(formData.batchInfo.expirationDate).toISOString().split('T')[0] : ''}
+                   onChange={(e) => handleBatchInfoChange('expirationDate', new Date(e.target.value))}
+                   required
+                   min={new Date().toISOString().split('T')[0]}
+                   className="w-full input-field"
+                 />
+               </div>
+             </div>
+
              {/* Tiempo y Porciones */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Tiempo de Preparación (min) *
@@ -1041,7 +1146,7 @@ export function RecetasPage() {
                 />
               </div>
 
-              <div>
+              <div className="sm:col-span-2 lg:col-span-1">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Porciones *
                 </label>
@@ -1060,44 +1165,47 @@ export function RecetasPage() {
 
 
 
-            {/* Ingredientes */}
+                        {/* Ingredientes */}
             <div>
-                             <div className="flex items-center justify-between mb-4">
-                 <h3 className="text-lg font-semibold text-gray-900">Ingredientes</h3>
-                 <div className="flex space-x-2">
-                   <Button
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">Ingredientes</h3>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <Button
+                    type="button"
+                    onClick={addIngredient}
+                    variant="outline"
+                    size="sm"
+                    className="btn-secondary text-sm"
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    <span className="hidden sm:inline">Agregar Ingrediente</span>
+                    <span className="sm:hidden">Agregar</span>
+                  </Button>
+                  <Button
                      type="button"
-                     onClick={addIngredient}
+                     onClick={addGenericIngredient}
                      variant="outline"
                      size="sm"
-                     className="btn-secondary"
+                     className="btn-secondary text-sm"
                    >
                      <Plus className="w-4 h-4 mr-2" />
-                     Agregar Ingrediente
+                     <span className="hidden sm:inline">Ingrediente Genérico</span>
+                     <span className="sm:hidden">Genérico</span>
                    </Button>
-                                                           <Button
-                      type="button"
-                      onClick={addGenericIngredient}
-                      variant="outline"
-                      size="sm"
-                      className="btn-secondary"
-                    >
-                      <Plus className="w-4 h-4 mr-2" />
-                      Ingrediente Genérico
-                    </Button>
-                   <Button
-                     type="button"
-                     onClick={recalculateIngredientCosts}
-                     variant="outline"
-                     size="sm"
-                     className="btn-secondary"
-                     title="Recalcular costos basados en productos del inventario"
-                   >
-                     <DollarSign className="w-4 h-4 mr-2" />
-                     Recalcular Costos
-                   </Button>
-                 </div>
-               </div>
+                  <Button
+                    type="button"
+                    onClick={recalculateIngredientCosts}
+                    variant="outline"
+                    size="sm"
+                    className="btn-secondary text-sm"
+                    title="Recalcular costos basados en productos del inventario"
+                  >
+                    <DollarSign className="w-4 h-4 mr-2" />
+                    <span className="hidden sm:inline">Recalcular Costos</span>
+                    <span className="sm:hidden">Costos</span>
+                  </Button>
+                </div>
+              </div>
               
                              <div className="space-y-3">
                                    {formData.ingredients.map((ingredient, index) => (
@@ -1118,8 +1226,8 @@ export function RecetasPage() {
                          </div>
                        )}
                                                                                        {/* Primera fila: Producto y Nombre */}
-                       <div className="flex items-center space-x-3">
-                                                  {!ingredient.isGeneric && (
+                       <div className="flex flex-col sm:flex-row gap-3">
+                         {!ingredient.isGeneric && (
                            <div className="flex-1">
                              <label className="block text-xs font-medium text-gray-600 mb-1">
                                Producto del Inventario
@@ -1130,7 +1238,7 @@ export function RecetasPage() {
                                  onClick={() => openProductModal(index)}
                                  variant="outline"
                                  size="sm"
-                                 className="flex-1 justify-start text-left"
+                                 className="flex-1 justify-start text-left text-xs"
                                >
                                  {ingredient.product ? (
                                    <span className="text-green-600">✓ Producto seleccionado</span>
@@ -1138,38 +1246,37 @@ export function RecetasPage() {
                                    <span className="text-gray-500">Seleccionar producto...</span>
                                  )}
                                </Button>
-                                                           {ingredient.product && (
-                               <Button
-                                 type="button"
-                                 onClick={() => updateIngredient(index, 'product', null)}
-                                 variant="ghost"
-                                 size="sm"
-                                 className="text-red-600 hover:text-red-700"
-                               >
-                                 <XCircle className="w-4 h-4" />
-                               </Button>
-                             )}
-                             
+                               {ingredient.product && (
+                                 <Button
+                                   type="button"
+                                   onClick={() => updateIngredient(index, 'product', null)}
+                                   variant="ghost"
+                                   size="sm"
+                                   className="text-red-600 hover:text-red-700 flex-shrink-0"
+                                 >
+                                   <XCircle className="w-4 h-4" />
+                                 </Button>
+                               )}
                              </div>
                            </div>
                          )}
-                                                  <div className={ingredient.isGeneric ? "w-full" : "flex-1"}>
-                            <label className="block text-xs font-medium text-gray-600 mb-1">
-                              {ingredient.isGeneric ? "Nombre del Ingrediente Genérico *" : "Nombre del Ingrediente"}
-                            </label>
-                            <input
-                              type="text"
-                              placeholder={ingredient.isGeneric ? "Ej: Sal, Azúcar, Especias..." : "Nombre del ingrediente"}
-                              value={ingredient.name}
-                              onChange={(e) => updateIngredient(index, 'name', e.target.value)}
-                              className="w-full input-field"
-                              required={ingredient.isGeneric}
-                            />
-                          </div>
+                         <div className={ingredient.isGeneric ? "w-full" : "flex-1"}>
+                           <label className="block text-xs font-medium text-gray-600 mb-1">
+                             {ingredient.isGeneric ? "Nombre del Ingrediente Genérico *" : "Nombre del Ingrediente"}
+                           </label>
+                           <input
+                             type="text"
+                             placeholder={ingredient.isGeneric ? "Ej: Sal, Azúcar, Especias..." : "Nombre del ingrediente"}
+                             value={ingredient.name}
+                             onChange={(e) => updateIngredient(index, 'name', e.target.value)}
+                             className="w-full input-field"
+                             required={ingredient.isGeneric}
+                           />
+                         </div>
                        </div>
                      
                      {/* Segunda fila: Cantidad, Unidad y Costo */}
-                     <div className="flex items-center space-x-3">
+                     <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3">
                        <div>
                          <label className="block text-xs font-medium text-gray-600 mb-1">
                            Cantidad
@@ -1179,7 +1286,7 @@ export function RecetasPage() {
                            placeholder="0"
                            value={ingredient.quantity}
                            onChange={(e) => updateIngredient(index, 'quantity', e.target.value)}
-                           className="w-20 input-field"
+                           className="w-full input-field"
                            min="0"
                            step="0.1"
                          />
@@ -1191,36 +1298,36 @@ export function RecetasPage() {
                          <select
                            value={ingredient.unit}
                            onChange={(e) => updateIngredient(index, 'unit', e.target.value)}
-                           className="w-24 input-field"
+                           className="w-full input-field"
                          >
                            {units.map(unit => (
                              <option key={unit} value={unit}>{unit}</option>
                            ))}
                          </select>
                        </div>
-                                                                                               <div>
-                                                       <label className="block text-xs font-medium text-gray-600 mb-1">
-                              Costo
-                              {ingredient.product && (
-                                <span className="text-green-600 ml-1">(Auto)</span>
-                              )}
-                              {ingredient.isGeneric && (
-                                <span className="text-blue-600 ml-1">(Manual)</span>
-                              )}
-                            </label>
-                           <input
-                             type="number"
-                             placeholder="0.00"
-                             value={ingredient.cost}
-                             onChange={(e) => updateIngredient(index, 'cost', parseFloat(e.target.value) || 0)}
-                             className={`w-24 input-field ${ingredient.product ? 'bg-green-50 border-green-200' : ingredient.isGeneric ? 'bg-blue-50 border-blue-200' : ''}`}
-                             min="0"
-                             step="0.01"
-                             readOnly={ingredient.product} // Solo lectura si tiene producto seleccionado
-                             title={ingredient.product ? 'Costo calculado automáticamente' : ingredient.isGeneric ? 'Costo manual para ingrediente genérico' : 'Costo manual'}
-                           />
-                         </div>
-                       <div className="flex-1">
+                       <div>
+                         <label className="block text-xs font-medium text-gray-600 mb-1">
+                           Costo
+                           {ingredient.product && (
+                             <span className="text-green-600 ml-1">(Auto)</span>
+                           )}
+                           {ingredient.isGeneric && (
+                             <span className="text-blue-600 ml-1">(Manual)</span>
+                           )}
+                         </label>
+                         <input
+                           type="number"
+                           placeholder="0.00"
+                           value={ingredient.cost}
+                           onChange={(e) => updateIngredient(index, 'cost', parseFloat(e.target.value) || 0)}
+                           className={`w-full input-field ${ingredient.product ? 'bg-green-50 border-green-200' : ingredient.isGeneric ? 'bg-blue-50 border-blue-200' : ''}`}
+                           min="0"
+                           step="0.01"
+                           readOnly={ingredient.product}
+                           title={ingredient.product ? 'Costo calculado automáticamente' : ingredient.isGeneric ? 'Costo manual para ingrediente genérico' : 'Costo manual'}
+                         />
+                       </div>
+                       <div className="col-span-2 lg:col-span-1">
                          <label className="block text-xs font-medium text-gray-600 mb-1">
                            Notas
                          </label>
@@ -1232,41 +1339,43 @@ export function RecetasPage() {
                            className="w-full input-field"
                          />
                        </div>
-                                               <div className="flex items-center space-x-2 self-end">
-                          {!ingredient.product && !ingredient.isGeneric && (
-                            <Button
-                              type="button"
-                              onClick={() => updateIngredient(index, 'isGeneric', true)}
-                              variant="ghost"
-                              size="sm"
-                              className="text-blue-600 hover:text-blue-700"
-                              title="Convertir a ingrediente genérico"
-                            >
-                              <FlaskConical className="w-4 h-4" />
-                            </Button>
-                          )}
-                          {ingredient.isGeneric && (
-                            <Button
-                              type="button"
-                              onClick={() => updateIngredient(index, 'isGeneric', false)}
-                              variant="ghost"
-                              size="sm"
-                              className="text-gray-600 hover:text-gray-700"
-                              title="Convertir a ingrediente del inventario"
-                            >
-                              <Target className="w-4 h-4" />
-                            </Button>
-                          )}
-                          <Button
-                            type="button"
-                            onClick={() => removeIngredient(index)}
-                            variant="ghost"
-                            size="sm"
-                            className="text-red-600 hover:text-red-700"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
+                       <div className="col-span-2 lg:col-span-1">
+                         <div className="flex items-center justify-end gap-1">
+                           {!ingredient.product && !ingredient.isGeneric && (
+                             <Button
+                               type="button"
+                               onClick={() => updateIngredient(index, 'isGeneric', true)}
+                               variant="ghost"
+                               size="sm"
+                               className="text-blue-600 hover:text-blue-700 p-1"
+                               title="Convertir a ingrediente genérico"
+                             >
+                               <FlaskConical className="w-4 h-4" />
+                             </Button>
+                           )}
+                           {ingredient.isGeneric && (
+                             <Button
+                               type="button"
+                               onClick={() => updateIngredient(index, 'isGeneric', false)}
+                               variant="ghost"
+                               size="sm"
+                               className="text-gray-600 hover:text-gray-700 p-1"
+                               title="Convertir a ingrediente del inventario"
+                             >
+                               <Target className="w-4 h-4" />
+                             </Button>
+                           )}
+                           <Button
+                             type="button"
+                             onClick={() => removeIngredient(index)}
+                             variant="ghost"
+                             size="sm"
+                             className="text-red-600 hover:text-red-700 p-1"
+                           >
+                             <Trash2 className="w-4 h-4" />
+                           </Button>
+                         </div>
+                       </div>
                      </div>
                    </div>
                  ))}
@@ -1300,24 +1409,25 @@ export function RecetasPage() {
 
             {/* Instrucciones */}
             <div>
-              <div className="flex items-center justify-between mb-4">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
                 <h3 className="text-lg font-semibold text-gray-900">Instrucciones de Preparación</h3>
                 <Button
                   type="button"
                   onClick={addInstruction}
                   variant="outline"
                   size="sm"
-                  className="btn-secondary"
+                  className="btn-secondary text-sm w-full sm:w-auto"
                 >
                   <Plus className="w-4 h-4 mr-2" />
-                  Agregar Paso
+                  <span className="hidden sm:inline">Agregar Paso</span>
+                  <span className="sm:hidden">Agregar</span>
                 </Button>
               </div>
               
               <div className="space-y-3">
                 {formData.instructions.map((instruction, index) => (
-                  <div key={index} className="flex items-start space-x-3">
-                    <div className="w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-sm font-medium mt-1">
+                  <div key={index} className="flex flex-col sm:flex-row items-start gap-3">
+                    <div className="w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-sm font-medium mt-1 flex-shrink-0">
                       {index + 1}
                     </div>
                     <textarea
@@ -1332,7 +1442,7 @@ export function RecetasPage() {
                       onClick={() => removeInstruction(index)}
                       variant="ghost"
                       size="sm"
-                      className="text-red-600 hover:text-red-700 mt-1"
+                      className="text-red-600 hover:text-red-700 mt-1 self-end flex-shrink-0"
                     >
                       <Trash2 className="w-4 h-4" />
                     </Button>
@@ -1342,7 +1452,7 @@ export function RecetasPage() {
             </div>
 
                          {/* Costo y Precio */}
-             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                <div>
                  <label className="block text-sm font-medium text-gray-700 mb-2">
                    Costo
@@ -1392,7 +1502,7 @@ export function RecetasPage() {
             </div>
 
             {/* Botones */}
-            <div className="flex justify-end space-x-3">
+            <div className="flex flex-col sm:flex-row gap-3 sm:justify-end">
               <Button
                 type="button"
                 variant="outline"
@@ -1401,19 +1511,24 @@ export function RecetasPage() {
                   setEditingRecipe(null)
                   info('Formulario cancelado')
                 }}
-                className="btn-secondary"
+                className="btn-secondary w-full sm:w-auto order-2 sm:order-1"
               >
                 Cancelar
               </Button>
               <Button 
                 type="submit" 
                 disabled={loading}
-                className="btn-primary shadow-medium hover:shadow-strong transform hover:-translate-y-1 transition-all duration-300"
+                className="btn-primary shadow-medium hover:shadow-strong transform hover:-translate-y-1 transition-all duration-300 w-full sm:w-auto order-1 sm:order-2"
               >
                 {loading ? (
                   <Loader2 className="w-4 h-4 animate-spin mr-2" />
                 ) : null}
-                {loading ? 'Guardando...' : (editingRecipe ? 'Actualizar Receta' : 'Crear Receta')}
+                <span className="hidden sm:inline">
+                  {loading ? 'Guardando...' : (editingRecipe ? 'Actualizar Receta' : 'Crear Receta')}
+                </span>
+                <span className="sm:hidden">
+                  {loading ? 'Guardando...' : (editingRecipe ? 'Actualizar' : 'Crear')}
+                </span>
               </Button>
             </div>
           </form>
@@ -1442,30 +1557,30 @@ export function RecetasPage() {
               <span className="ml-3 text-gray-600">Cargando recetas...</span>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
             {filteredRecipes.map((recipe) => {
               const difficultyInfo = getDifficultyInfo(recipe.difficulty)
               const statusInfo = getStatusInfo(recipe.status || 'en_preparacion')
               
               return (
-                <div key={recipe._id} className="bg-white border border-gray-200 rounded-xl p-6 hover:shadow-medium transition-all duration-200">
+                <div key={recipe._id} className="bg-white border border-gray-200 rounded-xl p-4 sm:p-6 hover:shadow-medium transition-all duration-200">
                   {/* Indicador de Estado */}
-                  <div className="flex items-center justify-between mb-4">
-                    <div className={`px-3 py-1 rounded-full text-xs font-medium ${statusInfo.bgColor} ${statusInfo.color} border ${statusInfo.borderColor}`}>
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
+                    <div className={`px-3 py-1 rounded-full text-xs font-medium ${statusInfo.bgColor} ${statusInfo.color} border ${statusInfo.borderColor} self-start`}>
                       {statusInfo.label}
                     </div>
-                    <div className="text-xs text-gray-500">
+                    <div className="text-xs text-gray-500 self-end">
                       {new Date(recipe.createdAt).toLocaleDateString('es-DO')}
                     </div>
                   </div>
                   
                   {/* Header de la receta */}
-                  <div className="flex items-start justify-between mb-4">
+                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 mb-4">
                     <div className="flex-1">
-                      <h4 className="text-lg font-semibold text-gray-900 mb-1">{recipe.name}</h4>
+                      <h4 className="text-base sm:text-lg font-semibold text-gray-900 mb-1">{recipe.name}</h4>
                       <p className="text-sm text-gray-600">{recipe.category}</p>
                     </div>
-                    <div className="flex items-center space-x-2">
+                    <div className="flex items-center space-x-2 self-start">
                       <span className="px-2 py-1 text-xs rounded-full bg-blue-50 text-blue-600">
                         {recipe.category}
                       </span>
@@ -1509,32 +1624,33 @@ export function RecetasPage() {
 
                    {/* Controles de Estado */}
                    <div className="mb-4 p-3 bg-gray-50 rounded-lg">
-                     <div className="flex items-center justify-between mb-2">
+                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
                        <span className="text-sm font-medium text-gray-700">Estado Actual:</span>
                        {(() => {
                          const statusInfo = getStatusInfo(recipe.status || 'en_preparacion');
                          return (
-                           <span className={`px-2 py-1 text-xs rounded-full ${statusInfo.bgColor} ${statusInfo.color} border ${statusInfo.borderColor}`}>
+                           <span className={`px-2 py-1 text-xs rounded-full ${statusInfo.bgColor} ${statusInfo.color} border ${statusInfo.borderColor} self-start`}>
                              {statusInfo.label}
                            </span>
                          );
                        })()}
                      </div>
                      
-                     <div className="flex flex-wrap gap-2">
+                     <div className="flex flex-col sm:flex-row gap-2">
                        {recipe.status !== 'en_preparacion' && (
                          <Button
                            onClick={() => handleStatusChange(recipe._id, 'en_preparacion', recipe.servings || 1)}
                            variant="outline"
                            size="sm"
-                           className="text-yellow-600 hover:text-yellow-700 border-yellow-200 hover:border-yellow-300"
+                           className="text-yellow-600 hover:text-yellow-700 border-yellow-200 hover:border-yellow-300 w-full sm:w-auto text-xs"
                            title={recipe.status === 'completada' ? 
                              `Volver a En Preparación - Disminuirá el stock de "${recipe.productToProduce?.name}" en ${recipe.servings || 1} unidad(es)` : 
                              'Volver a En Preparación'
                            }
                          >
                            <Clock className="w-3 h-3 mr-1" />
-                           En Preparación
+                           <span className="hidden sm:inline">En Preparación</span>
+                           <span className="sm:hidden">Preparación</span>
                            {recipe.status === 'completada' && (
                              <span className="ml-1 text-xs">(-{recipe.servings || 1})</span>
                            )}
@@ -1546,11 +1662,12 @@ export function RecetasPage() {
                            onClick={() => handleStatusChange(recipe._id, 'completada', recipe.servings || 1)}
                            variant="outline"
                            size="sm"
-                           className="text-green-600 hover:text-green-700 border-green-200 hover:border-green-300"
+                           className="text-green-600 hover:text-green-700 border-green-200 hover:border-green-300 w-full sm:w-auto text-xs"
                            title={`Completar - Aumentará el stock de "${recipe.productToProduce?.name}" en ${recipe.servings || 1} unidad(es)`}
                          >
                            <Target className="w-3 h-3 mr-1" />
-                           Completar (+{recipe.servings || 1})
+                           <span className="hidden sm:inline">Completar (+{recipe.servings || 1})</span>
+                           <span className="sm:hidden">Completar</span>
                          </Button>
                        )}
                        
@@ -1559,7 +1676,7 @@ export function RecetasPage() {
                            onClick={() => handleStatusChange(recipe._id, 'descartada', recipe.servings || 1)}
                            variant="outline"
                            size="sm"
-                           className="text-red-600 hover:text-red-700 border-red-200 hover:border-red-300"
+                           className="text-red-600 hover:text-red-700 border-red-200 hover:border-red-300 w-full sm:w-auto text-xs"
                            title={recipe.status === 'completada' ? 
                              `Descartar - Disminuirá el stock de "${recipe.productToProduce?.name}" en ${recipe.servings || 1} unidad(es)` : 
                              'Descartar receta'
@@ -1633,37 +1750,44 @@ export function RecetasPage() {
                   </div>
 
                   {/* Acciones */}
-                  <div className="flex items-center space-x-2">
+                  <div className="flex flex-col sm:flex-row gap-2">
                     <Button
                       onClick={() => handleEdit(recipe)}
                       variant="outline"
                       size="sm"
-                      className="flex-1 btn-secondary"
+                      className="flex-1 btn-secondary text-xs"
                     >
                       <Edit className="w-4 h-4 mr-2" />
-                      Editar
+                      <span className="hidden sm:inline">Editar</span>
+                      <span className="sm:hidden">Editar</span>
                     </Button>
                     <Button
                       onClick={() => handleDuplicate(recipe)}
                       variant="outline"
                       size="sm"
                       disabled={duplicatingRecipeId === recipe._id}
-                      className="text-blue-600 hover:text-blue-700 border-blue-200 hover:border-blue-300"
+                      className="text-blue-600 hover:text-blue-700 border-blue-200 hover:border-blue-300 text-xs"
                       title={`Duplicar "${recipe.name}" - Crear una copia con estado "En Preparación"`}
                     >
                       {duplicatingRecipeId === recipe._id ? (
                         <Loader2 className="w-4 h-4 animate-spin" />
                       ) : (
-                        <Copy className="w-4 h-4" />
+                        <>
+                          <Copy className="w-4 h-4 mr-1" />
+                          <span className="hidden sm:inline">Duplicar</span>
+                          <span className="sm:hidden">Copiar</span>
+                        </>
                       )}
                     </Button>
                     <Button
                       onClick={() => handleDelete(recipe._id)}
                       variant="outline"
                       size="sm"
-                      className="text-red-600 hover:text-red-700 border-red-200 hover:border-red-300"
+                      className="text-red-600 hover:text-red-700 border-red-200 hover:border-red-300 text-xs"
                     >
-                      <Trash2 className="w-4 h-4" />
+                      <Trash2 className="w-4 h-4 mr-1" />
+                      <span className="hidden sm:inline">Eliminar</span>
+                      <span className="sm:hidden">Eliminar</span>
                     </Button>
                   </div>
                 </div>
@@ -1689,10 +1813,10 @@ export function RecetasPage() {
 
        {/* Modal de Selección de Productos */}
        {showProductModal && (
-         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-           <div className="bg-white rounded-lg p-6 w-full max-w-4xl max-h-[80vh] overflow-hidden">
-             <div className="flex items-center justify-between mb-4">
-               <h3 className="text-lg font-semibold text-gray-900">
+         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+           <div className="bg-white rounded-lg p-4 sm:p-6 w-full max-w-4xl max-h-[80vh] overflow-hidden">
+             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+               <h3 className="text-base sm:text-lg font-semibold text-gray-900">
                  {selectedIngredientIndex === 'productToProduce' 
                    ? 'Seleccionar Producto a Producir' 
                    : 'Seleccionar Producto del Inventario'
@@ -1704,6 +1828,7 @@ export function RecetasPage() {
                    setShowProductModal(false)
                    setSelectedIngredientIndex(null)
                  }}
+                 className="self-end sm:self-auto"
                >
                  <XCircle className="w-5 h-5" />
                </Button>
@@ -1734,24 +1859,24 @@ export function RecetasPage() {
                    <span className="ml-2 text-gray-600">Cargando productos...</span>
                  </div>
                ) : (
-                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                    {products.map((product) => (
                      <div
                        key={product._id}
                        className="p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer"
                        onClick={() => selectProduct(product)}
                      >
-                       <div className="flex items-center justify-between">
+                       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                          <div className="flex-1">
-                           <h4 className="font-medium text-gray-900">{product.name}</h4>
-                           <p className="text-sm text-gray-600">SKU: {product.sku}</p>
-                           <div className="flex items-center space-x-4 text-xs text-gray-500 mt-1">
+                           <h4 className="font-medium text-gray-900 text-sm sm:text-base">{product.name}</h4>
+                           <p className="text-xs sm:text-sm text-gray-600">SKU: {product.sku}</p>
+                           <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 text-xs text-gray-500 mt-1">
                              <span>Stock: {product.stock || 0}</span>
                              <span>Costo: {formatCurrency(product.cost || 0)}</span>
                              <span>Precio: {formatCurrency(product.price || 0)}</span>
                            </div>
                          </div>
-                         <div className="text-right">
+                         <div className="text-right self-start">
                            <span className="text-xs px-2 py-1 bg-blue-100 text-blue-800 rounded-full">
                              {product.category || 'Sin categoría'}
                            </span>
@@ -1775,13 +1900,14 @@ export function RecetasPage() {
              </div>
 
              {/* Botones de acción */}
-             <div className="flex justify-end space-x-3 mt-4 pt-4 border-t border-gray-200">
+             <div className="flex flex-col sm:flex-row gap-3 sm:justify-end mt-4 pt-4 border-t border-gray-200">
                <Button
                  variant="outline"
                  onClick={() => {
                    setShowProductModal(false)
                    setSelectedIngredientIndex(null)
                  }}
+                 className="w-full sm:w-auto order-2 sm:order-1"
                >
                  Cancelar
                </Button>
@@ -1790,7 +1916,7 @@ export function RecetasPage() {
                    setShowProductModal(false)
                    setSelectedIngredientIndex(null)
                  }}
-                 className="btn-primary"
+                 className="btn-primary w-full sm:w-auto order-1 sm:order-2"
                >
                  Cerrar
                </Button>

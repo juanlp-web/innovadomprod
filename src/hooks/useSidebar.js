@@ -1,7 +1,31 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 
 export const useSidebar = () => {
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  // Estado inicial basado en el tamaño de pantalla
+  const [isCollapsed, setIsCollapsed] = useState(() => {
+    // Verificar si estamos en el navegador
+    if (typeof window !== 'undefined') {
+      return window.innerWidth < 1024;
+    }
+    return false;
+  });
+
+  // Detectar tamaño de pantalla y colapsar en móviles/tablets
+  useEffect(() => {
+    const checkScreenSize = () => {
+      const shouldBeCollapsed = window.innerWidth < 1024;
+      setIsCollapsed(shouldBeCollapsed);
+    };
+
+    // Verificar al cargar
+    checkScreenSize();
+
+    // Agregar listener para cambios de tamaño
+    window.addEventListener('resize', checkScreenSize);
+
+    // Cleanup
+    return () => window.removeEventListener('resize', checkScreenSize);
+  }, []);
 
   const toggleCollapse = useCallback(() => {
     setIsCollapsed(prev => !prev);

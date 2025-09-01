@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { useAuth } from '@/contexts/AuthContext'
+import { ForgotPassword } from './ForgotPassword'
 import { 
   BarChart3, 
   User, 
@@ -10,19 +11,15 @@ import {
   Loader2
 } from 'lucide-react'
 
-export function Login({ onForgotPassword }) {
+export function Login() {
   const { login, user } = useAuth();
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [formData, setFormData] = useState({
-    username: '',
+    email: '',
     password: ''
   })
   const [isLoading, setIsLoading] = useState(false)
   const [errors, setErrors] = useState({})
-
-  // Log del estado del usuario
-  useEffect(() => {
-    console.log('🔍 Login component - Estado del usuario:', user);
-  }, [user]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target
@@ -41,8 +38,8 @@ export function Login({ onForgotPassword }) {
 
   const validateForm = () => {
     const newErrors = {}
-    if (!formData.username.trim()) {
-      newErrors.username = 'El nombre de usuario es requerido'
+    if (!formData.email.trim()) {
+      newErrors.email = 'El email es requerido'
     }
     if (!formData.password.trim()) {
       newErrors.password = 'La contraseña es requerida'
@@ -55,32 +52,35 @@ export function Login({ onForgotPassword }) {
     e.preventDefault()
     if (!validateForm()) return
 
-    console.log('📝 Enviando formulario de login...');
     setIsLoading(true)
     try {
       // Usar el hook de autenticación
       const result = await login({
-        email: formData.username,
+        email: formData.email,
         password: formData.password
       });
 
-      console.log('📡 Resultado del login:', result);
-
       if (result.success) {
-        console.log('✅ Login exitoso, limpiando errores...');
         setErrors({});
         // El hook se encarga de establecer el usuario
         // React Router debería detectar el cambio y redirigir
       } else {
-        console.log('❌ Login fallido:', result.message);
         setErrors({ general: result.message });
       }
     } catch (error) {
-      console.error('💥 Error de login:', error);
       setErrors({ general: 'Error inesperado durante el login' });
     } finally {
       setIsLoading(false)
     }
+  }
+
+  // Si se debe mostrar el formulario de recuperación de contraseña
+  if (showForgotPassword) {
+    return (
+      <ForgotPassword 
+        onBack={() => setShowForgotPassword(false)} 
+      />
+    );
   }
 
   return (
@@ -98,28 +98,28 @@ export function Login({ onForgotPassword }) {
         {/* Formulario de Login */}
         <div className="card card-hover p-8 animate-slide-up">
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Campo Usuario */}
+            {/* Campo Email */}
             <div>
-              <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-2">
-                Nombre de Usuario
+              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+                Correo Electrónico
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <User className="w-5 h-5 text-gray-400" />
+                  <Mail className="w-5 h-5 text-gray-400" />
                 </div>
                 <input
-                  type="text"
-                  id="username"
-                  name="username"
-                  value={formData.username}
+                  type="email"
+                  id="email"
+                  name="email"
+                  value={formData.email}
                   onChange={handleInputChange}
-                  className={`input-field pl-10 ${errors.username ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : ''}`}
-                  placeholder="Ingrese su usuario"
+                  className={`input-field pl-10 ${errors.email ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : ''}`}
+                  placeholder="Ingrese su correo electrónico"
                   disabled={isLoading}
                 />
               </div>
-              {errors.username && (
-                <p className="mt-1 text-sm text-red-600 animate-fade-in">{errors.username}</p>
+              {errors.email && (
+                <p className="mt-1 text-sm text-red-600 animate-fade-in">{errors.email}</p>
               )}
             </div>
 
@@ -175,7 +175,7 @@ export function Login({ onForgotPassword }) {
             <div className="text-center">
               <button
                 type="button"
-                onClick={onForgotPassword}
+                onClick={() => setShowForgotPassword(true)}
                 className="text-blue-600 hover:text-blue-700 font-medium text-sm hover:underline transition-colors duration-200"
                 disabled={isLoading}
               >
@@ -191,14 +191,6 @@ export function Login({ onForgotPassword }) {
             © 2024 Innovadom. Todos los derechos reservados.
           </p>
         </div>
-
-        {/* Debug info */}
-        {process.env.NODE_ENV === 'development' && (
-          <div className="mt-4 p-2 bg-gray-100 rounded text-xs text-gray-600">
-            <p>Debug: Usuario actual: {user ? user.name : 'No logueado'}</p>
-            <p>Debug: Estado: {user ? 'Autenticado' : 'No autenticado'}</p>
-          </div>
-        )}
       </div>
     </div>
   )

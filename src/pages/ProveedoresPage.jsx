@@ -332,15 +332,21 @@ export function ProveedoresPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold text-gray-900">Proveedores</h1>
-        <Button 
-          className="bg-purple-600 hover:bg-purple-700"
-          onClick={() => setShowNewSupplierModal(true)}
-        >
-          <Plus className="w-4 h-4 mr-2" />
-           Nuevo Proveedor
-        </Button>
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+        <div className="flex-1">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Gestión de Proveedores</h1>
+          <p className="text-gray-600 text-sm sm:text-base">Administra la base de datos de proveedores</p>
+        </div>
+        <div className="flex-shrink-0">
+          <Button 
+            className="bg-purple-600 hover:bg-purple-700 w-full lg:w-auto"
+            onClick={() => setShowNewSupplierModal(true)}
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            <span className="hidden sm:inline">Nuevo Proveedor</span>
+            <span className="sm:hidden">Nuevo</span>
+          </Button>
+        </div>
       </div>
 
       {/* Mensaje de error */}
@@ -362,32 +368,31 @@ export function ProveedoresPage() {
       )}
 
       {/* Filtros y búsqueda */}
-      <div className="bg-white shadow rounded-lg border border-gray-200 p-6">
+      <div className="bg-white shadow rounded-lg border border-gray-200 p-4 sm:p-6">
         <form onSubmit={handleSearch} className="space-y-4">
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="flex-1">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Buscar proveedores..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                />
-              </div>
+          <div className="flex flex-col gap-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Buscar proveedores..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+              />
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row gap-2">
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => setShowFilters(!showFilters)}
-                className="flex items-center gap-2"
+                className="flex items-center justify-center gap-2 w-full sm:w-auto"
               >
                 <Filter className="w-4 h-4" />
-                Filtros
+                <span className="hidden sm:inline">Filtros</span>
+                <span className="sm:hidden">Filtros</span>
               </Button>
-              <Button type="submit" className="bg-purple-600 hover:bg-purple-700">
+              <Button type="submit" className="bg-purple-600 hover:bg-purple-700 w-full sm:w-auto">
                 Buscar
               </Button>
             </div>
@@ -476,10 +481,65 @@ export function ProveedoresPage() {
             </p>
           </div>
                  ) : (
-           <div className="p-6">
-             <div className="overflow-x-auto">
-               <table className="min-w-full divide-y divide-gray-200">
-                                   <thead className="bg-gray-50">
+          <>
+            {/* Vista de tarjetas para móviles */}
+            <div className="lg:hidden p-4 sm:p-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {suppliers.map((proveedor) => (
+                  <div key={proveedor._id} className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+                    {/* Header de la tarjeta */}
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex-1">
+                        <h4 className="font-semibold text-gray-900 text-sm">{proveedor.name}</h4>
+                        <p className="text-xs text-gray-600">{proveedor.category}</p>
+                      </div>
+                      <span className={`px-2 py-1 text-xs rounded-full ${getStatusColor(proveedor.status)}`}>
+                        {proveedor.status}
+                      </span>
+                    </div>
+                    
+                    {/* Información adicional */}
+                    <div className="mb-4">
+                      <p className="text-xs text-gray-600">
+                        Calificación: {proveedor.rating ? `${proveedor.rating}/5.0` : 'Sin calificación'}
+                      </p>
+                    </div>
+                    
+                    {/* Acciones */}
+                    <div className="flex flex-wrap gap-2">
+                      <Button 
+                        size="sm" 
+                        variant="outline" 
+                        onClick={() => handleViewSupplier(proveedor)}
+                        className="flex-1 text-xs p-2"
+                      >
+                        <Eye className="w-3 h-3 mr-1" />
+                        Ver
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        variant="outline" 
+                        onClick={() => handleEditSupplier(proveedor)}
+                        className="flex-1 text-xs p-2"
+                      >
+                        <Edit className="w-3 h-3 mr-1" />
+                        Editar
+                      </Button>
+                      <Button size="sm" variant="outline" className="flex-1 text-xs p-2">
+                        <History className="w-3 h-3 mr-1" />
+                        Historial
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            
+            {/* Vista de tabla para desktop */}
+            <div className="hidden lg:block p-6">
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
                     <tr>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Proveedor
@@ -498,8 +558,8 @@ export function ProveedoresPage() {
                       </th>
                     </tr>
                   </thead>
-                 <tbody className="bg-white divide-y divide-gray-200">
-                                       {suppliers.map((proveedor) => (
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {suppliers.map((proveedor) => (
                       <tr key={proveedor._id} className="hover:bg-gray-50">
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-sm font-medium text-gray-900">{proveedor.name}</div>
@@ -543,9 +603,12 @@ export function ProveedoresPage() {
                         </td>
                       </tr>
                     ))}
-                 </tbody>
-               </table>
-             </div>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </>
+        )}
 
             {/* Paginación */}
             {pagination.totalPages > 1 && (
@@ -576,8 +639,6 @@ export function ProveedoresPage() {
               </div>
             )}
           </div>
-        )}
-      </div>
 
       {/* Estadísticas de proveedores */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">

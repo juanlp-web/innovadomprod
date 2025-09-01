@@ -31,11 +31,10 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      // Token expirado o inválido - solo limpiar localStorage
-      // No redirigir automáticamente para evitar loops
+      // Token expirado o inválido
       localStorage.removeItem('token');
       localStorage.removeItem('user');
-      console.log('🔒 Token expirado o inválido, sesión limpiada');
+      window.location.href = '/login';
     }
     return Promise.reject(error);
   }

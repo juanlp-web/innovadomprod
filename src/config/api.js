@@ -49,6 +49,8 @@ export const authAPI = {
   getProfile: () => api.get('/auth/profile'),
   updateProfile: (userData) => api.put('/auth/profile', userData),
   changePassword: (passwordData) => api.put('/auth/change-password', passwordData),
+  forgotPassword: (email) => api.post('/auth/forgot-password', { email }),
+  resetPassword: (token, newPassword) => api.post('/auth/reset-password', { token, newPassword }),
 };
 
 // Funciones de productos
@@ -60,6 +62,7 @@ export const productsAPI = {
   delete: (id) => api.delete(`/products/${id}`),
   updateStock: (id, stockData) => api.put(`/products/${id}/stock`, stockData),
   getLowStock: () => api.get('/products/low-stock'),
+  getStats: () => api.get('/products/stats'),
 };
 
 // Funciones de clientes
@@ -69,6 +72,7 @@ export const clientsAPI = {
   create: (clientData) => api.post('/clients', clientData),
   update: (id, clientData) => api.put(`/clients/${id}`, clientData),
   delete: (id) => api.delete(`/clients/${id}`),
+  getStats: () => api.get('/clients/stats'),
 };
 
 // Funciones de proveedores
@@ -78,6 +82,7 @@ export const suppliersAPI = {
   create: (supplierData) => api.post('/suppliers', supplierData),
   update: (id, supplierData) => api.put(`/suppliers/${id}`, supplierData),
   delete: (id) => api.delete(`/suppliers/${id}`),
+  getStats: () => api.get('/suppliers/stats'),
 };
 
 // Funciones de recetas
@@ -98,6 +103,20 @@ export const recipesAPI = {
   updateStatus: (id, statusData) => api.put(`/recipes/${id}/status`, statusData),
 };
 
+// Funciones de lotes
+export const batchesAPI = {
+  getAll: (params) => api.get('/batches', { params }),
+  getById: (id) => api.get(`/batches/${id}`),
+  create: (batchData) => api.post('/batches', batchData),
+  update: (id, batchData) => api.put(`/batches/${id}`, batchData),
+  delete: (id) => api.delete(`/batches/${id}`),
+  consumeStock: (id, quantity) => api.put(`/batches/${id}/consume`, { quantity }),
+  restoreStock: (id, quantity) => api.put(`/batches/${id}/restore`, { quantity }),
+  getActiveByProduct: (productId) => api.get(`/batches/product/${productId}/active`),
+  getStats: () => api.get('/batches/stats/overview'),
+  getExpiringSoon: (days = 30) => api.get(`/batches/expiring-soon?days=${days}`),
+};
+
 // Funciones de ventas
 export const salesAPI = {
   getAll: (params) => api.get('/sales', { params }),
@@ -105,6 +124,20 @@ export const salesAPI = {
   create: (saleData) => api.post('/sales', saleData),
   updatePaymentStatus: (id, status) => api.put(`/sales/${id}/payment-status`, { paymentStatus: status }),
   getStats: (params) => api.get('/sales/stats/summary', { params }),
+  getTopProducts: (params) => api.get('/sales/stats/top-products', { params }),
+  getMonthlyData: (params) => api.get('/sales/stats/monthly', { params }),
+};
+
+// Funciones de compras
+export const purchasesAPI = {
+  getAll: (params) => api.get('/purchases', { params }),
+  getById: (id) => api.get(`/purchases/${id}`),
+  create: (purchaseData) => api.post('/purchases', purchaseData),
+  update: (id, purchaseData) => api.put(`/purchases/${id}`, purchaseData),
+  delete: (id) => api.delete(`/purchases/${id}`),
+  changeStatus: (id, status) => api.patch(`/purchases/${id}/status`, { status }),
+  receive: (id) => api.post(`/purchases/${id}/receive`),
+  getStats: () => api.get('/purchases/stats/summary'),
 };
 
 // Funciones de inventario
@@ -113,6 +146,7 @@ export const inventoryAPI = {
   getLowStock: () => api.get('/inventory/low-stock'),
   adjustStock: (id, stockData) => api.put(`/inventory/${id}/adjust`, stockData),
   getMovements: (id) => api.get(`/inventory/${id}/movements`),
+  getStats: () => api.get('/inventory/stats/summary'),
 };
 
 // Funciones de usuarios (solo admin)
@@ -123,4 +157,23 @@ export const usersAPI = {
   delete: (id) => api.delete(`/users/${id}`),
 };
 
+// Funciones del dashboard
+export const dashboardAPI = {
+  getStats: () => api.get('/dashboard/stats'),
+  getTopProducts: () => api.get('/dashboard/top-products'),
+  getMonthlyData: (year) => api.get(`/dashboard/monthly-sales?year=${year}`),
+};
+
+// Funciones del perfil de usuario
+export const profileAPI = {
+  getProfile: () => api.get('/profile'),
+  updateProfile: (data) => api.put('/profile', data),
+  changePassword: (data) => api.put('/profile/change-password', data),
+  getLoginHistory: () => api.get('/profile/login-history'),
+  updateNotifications: (data) => api.put('/profile/notifications', data),
+  updateTheme: (data) => api.put('/profile/theme', data),
+};
+
+// Exportar tanto la instancia api como las APIs específicas
+export { api };
 export default api;

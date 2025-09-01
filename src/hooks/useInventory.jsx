@@ -1,11 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
-import { inventoryAPI, productsAPI } from '@/config/api';
+import { inventoryAPI, productsAPI, batchesAPI } from '@/config/api';
 import { toast } from 'react-hot-toast';
 
 // Función auxiliar para extraer datos de la respuesta de la API
 const extractDataFromResponse = (response) => {
-  console.log('Extrayendo datos de respuesta:', response);
-  
   // Si response.data es un array, usarlo directamente
   if (Array.isArray(response.data)) {
     return response.data;
@@ -31,14 +29,12 @@ const extractDataFromResponse = (response) => {
     const keys = Object.keys(response.data);
     for (const key of keys) {
       if (Array.isArray(response.data[key])) {
-        console.log(`Encontrado array en propiedad '${key}':`, response.data[key]);
         return response.data[key];
       }
     }
   }
   
   // Si no se encuentra ningún array, devolver array vacío
-  console.warn('No se encontró ningún array en la respuesta:', response);
   return [];
 };
 
@@ -59,52 +55,96 @@ export const useInventory = () => {
       setLoading(true);
       setError(null);
       
-      console.log('Iniciando carga de inventario...');
-      const response = await productsAPI.getAll({ isActive: true });
-      console.log('Respuesta completa de la API:', response);
+      const response = await inventoryAPI.getInventory();
       
-      // Usar la función auxiliar para extraer datos
-      const productsData = extractDataFromResponse(response);
-      
-      if (!Array.isArray(productsData) || productsData.length === 0) {
-        console.log('No se encontraron productos o la respuesta está vacía');
+      if (response.data.success) {
+        const responseData = response.data.data;
+        
+        // Buscar la propiedad que contiene el array de productos
+        let productsData = [];
+        for (const key in responseData) {
+          if (Array.isArray(responseData[key])) {
+            productsData = responseData[key];
+            break;
+          }
+        }
+        
+        if (productsData.length === 0) {
+          setInventory([]);
+          setSummary({
+            totalProducts: 0,
+            totalStock: 0,
+            lowStock: 0,
+            outOfStock: 0
+          });
+          return;
+        }
+        
+        // Procesar cada producto
+        const processedProducts = await Promise.all(
+          productsData.map(async (product) => {
+            try {
+              // Verificar si el producto maneja lotes
+              const hasBatches = product.managesBatches || false;
+              
+              if (hasBatches) {
+                // Cargar lotes del producto
+                const batchesResponse = await batchesAPI.getBatchesByProduct(product._id);
+                if (batchesResponse.data.success) {
+                  product.batches = batchesResponse.data.data;
+                } else {
+                  product.batches = [];
+                }
+              }
+              
+              return {
+                ...product,
+                hasBatches,
+                batches: product.batches || []
+              };
+            } catch (err) {
+              // Si hay error al cargar lotes, continuar sin ellos
+              return {
+                ...product,
+                hasBatches: product.managesBatches || false,
+                batches: []
+              };
+            }
+          })
+        );
+        
+        setInventory(processedProducts);
+        
+        // Calcular resumen
+        const totalStock = processedProducts.reduce((sum, product) => sum + (product.stock || 0), 0);
+        const lowStock = processedProducts.filter(p => (p.stock || 0) <= (p.minStock || 0)).length;
+        const outOfStock = processedProducts.filter(p => (p.stock || 0) === 0).length;
+        
+        setSummary({
+          totalProducts: processedProducts.length,
+          totalStock,
+          lowStock,
+          outOfStock
+        });
+      } else {
+        setError('Error al cargar el inventario');
         setInventory([]);
-        setError(null); // No es un error, solo no hay productos
-        return;
+        setSummary({
+          totalProducts: 0,
+          totalStock: 0,
+          lowStock: 0,
+          outOfStock: 0
+        });
       }
-      
-      console.log('Procesando', productsData.length, 'productos...');
-      const products = productsData.map(product => {
-        const processedProduct = {
-          id: product._id || product.id,
-          productName: product.name || 'Sin nombre',
-          category: product.category || 'Sin categoría',
-          currentStock: product.stock || 0,
-          minStock: product.minStock || 0,
-          unit: product.unit || 'unidad',
-          cost: product.cost || 0,
-          supplier: product.supplier?.name || product.supplier || 'Sin proveedor',
-          sku: product.sku || 'N/A',
-          description: product.description || ''
-        };
-        console.log('Producto procesado:', processedProduct);
-        return processedProduct;
+    } catch (error) {
+      setError('Error al cargar el inventario');
+      setInventory([]);
+      setSummary({
+        totalProducts: 0,
+        totalStock: 0,
+        lowStock: 0,
+        outOfStock: 0
       });
-      
-      console.log('Productos procesados:', products);
-      setInventory(products);
-      setError(null); // Limpiar errores previos
-    } catch (err) {
-      console.error('Error al cargar inventario:', err);
-      console.error('Detalles del error:', {
-        message: err.message,
-        response: err.response,
-        status: err.response?.status,
-        data: err.response?.data
-      });
-      setError(`Error al cargar el inventario: ${err.message}`);
-      toast.error('Error al cargar el inventario');
-      setInventory([]); // Establecer inventario vacío en caso de error
     } finally {
       setLoading(false);
     }
@@ -114,18 +154,15 @@ export const useInventory = () => {
   const loadSummary = useCallback(async () => {
     try {
       const response = await inventoryAPI.getSummary();
-      console.log('Resumen de inventario:', response.data);
       setSummary(response.data);
     } catch (err) {
-      console.error('Error al cargar resumen:', err);
-      // Si falla el resumen, calculamos uno básico
+      // Si falla la carga del resumen, calcular uno básico
       const basicSummary = {
         totalProducts: inventory.length,
         lowStockProducts: inventory.filter(item => (item.currentStock || 0) <= (item.minStock || 0)).length,
         outOfStockProducts: inventory.filter(item => (item.currentStock || 0) <= 0).length,
         totalValue: inventory.reduce((sum, item) => sum + ((item.currentStock || 0) * (item.cost || 0)), 0)
       };
-      console.log('Usando resumen básico calculado:', basicSummary);
       setSummary(basicSummary);
     }
   }, [inventory]);

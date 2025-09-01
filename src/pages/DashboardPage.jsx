@@ -1,6 +1,6 @@
-import { useState } from 'react'
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line, AreaChart, Area, PieChart, Pie, Cell } from 'recharts'
-import { QuickNav } from '@/components/QuickNav'
+import { useState, useEffect } from 'react'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line, AreaChart, Area } from 'recharts'
+import { useDashboard } from '@/hooks/useDashboard'
 import {
   Package,
   Leaf,
@@ -17,62 +17,67 @@ import {
   Settings,
   Database,
   FileText,
-  Box
+  Box,
+  RefreshCw,
+  AlertCircle
 } from 'lucide-react'
 
 export function DashboardPage() {
-  const [selectedYear, setSelectedYear] = useState(2024)
-  const [selectedMonth, setSelectedMonth] = useState(12)
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
+  
+  const { 
+    stats, 
+    topProducts, 
+    monthlyData, 
+    loading, 
+    error, 
+    refreshData, 
+    fetchMonthlyData
+  } = useDashboard()
 
-  // Datos para Top Productos Vendidos
-  const topProducts = [
-    { name: 'Crema Hidratante', ventas: 156, color: '#3B82F6' },
-    { name: 'Mascarilla Facial', ventas: 134, color: '#10B981' },
-    { name: 'Serum Vitamina C', ventas: 98, color: '#8B5CF6' },
-    { name: 'Protector Solar', ventas: 87, color: '#F59E0B' },
-    { name: 'Exfoliante', ventas: 76, color: '#EF4444' },
-    { name: 'Tónico Facial', ventas: 65, color: '#06B6D4' }
-  ]
+  // Actualizar datos mensuales cuando cambie el año
+  useEffect(() => {
+    fetchMonthlyData(selectedYear)
+  }, [selectedYear, fetchMonthlyData])
 
-  // Datos para Producción por Períodos
-  const productionData = [
-    { mes: 'Ene', produccion: 120, meta: 150 },
-    { mes: 'Feb', produccion: 135, meta: 150 },
-    { mes: 'Mar', produccion: 142, meta: 150 },
-    { mes: 'Abr', produccion: 128, meta: 150 },
-    { mes: 'May', produccion: 155, meta: 150 },
-    { mes: 'Jun', produccion: 148, meta: 150 },
-    { mes: 'Jul', produccion: 162, meta: 150 },
-    { mes: 'Ago', produccion: 138, meta: 150 },
-    { mes: 'Sep', produccion: 145, meta: 150 },
-    { mes: 'Oct', produccion: 158, meta: 150 },
-    { mes: 'Nov', produccion: 167, meta: 150 },
-    { mes: 'Dic', produccion: 175, meta: 150 }
-  ]
+  // Formatear moneda
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat('es-DO', {
+      style: 'currency',
+      currency: 'DOP'
+    }).format(amount || 0)
+  }
 
-  // Datos para Distribución de Inversión
-  const investmentData = [
-    { name: 'Materia Prima', value: 45, color: '#10B981', icon: Leaf },
-    { name: 'Envases y Embalaje', value: 25, color: '#3B82F6', icon: Package },
-    { name: 'Reventa', value: 20, color: '#8B5CF6', icon: ShoppingCart },
-    { name: 'Gastos Generales', value: 10, color: '#F59E0B', icon: Settings }
-  ]
+  // Formatear fecha de última actualización
+  const formatLastUpdate = () => {
+    const now = new Date()
+    const diff = Math.floor((now - new Date(now.getTime() - 5 * 60 * 1000)) / 1000)
+    if (diff < 60) return 'Hace unos segundos'
+    if (diff < 3600) return `Hace ${Math.floor(diff / 60)} minutos`
+    return `Hace ${Math.floor(diff / 3600)} horas`
+  }
 
-  const years = [2022, 2023, 2024]
-  const months = [
-    { value: 1, label: 'Enero' },
-    { value: 2, label: 'Febrero' },
-    { value: 3, label: 'Marzo' },
-    { value: 4, label: 'Abril' },
-    { value: 5, label: 'Mayo' },
-    { value: 6, label: 'Junio' },
-    { value: 7, label: 'Julio' },
-    { value: 8, label: 'Agosto' },
-    { value: 9, label: 'Septiembre' },
-    { value: 10, label: 'Octubre' },
-    { value: 11, label: 'Noviembre' },
-    { value: 12, label: 'Diciembre' }
-  ]
+  // Mostrar error si existe
+  if (error) {
+    return (
+      <div className="space-y-8 animate-fade-in">
+        <div className="card card-hover p-6">
+          <div className="text-center">
+            <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">Error de conexión</h3>
+            <p className="text-gray-500 mb-4">{error}</p>
+            <button 
+              onClick={refreshData}
+              className="btn-primary flex items-center space-x-2 mx-auto"
+            >
+              <RefreshCw className="w-4 h-4" />
+              <span>Reintentar</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-8 animate-fade-in">
@@ -85,14 +90,21 @@ export function DashboardPage() {
         <div className="flex items-center space-x-3">
           <div className="text-right">
             <p className="text-sm text-gray-500">Última actualización</p>
-            <p className="text-sm font-medium text-gray-900">Hace 5 minutos</p>
+            <p className="text-sm font-medium text-gray-900">{formatLastUpdate()}</p>
           </div>
           <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+          <button 
+            onClick={refreshData}
+            disabled={loading}
+            className="p-2 text-gray-500 hover:text-gray-700 transition-colors duration-200"
+            title="Actualizar datos"
+          >
+            <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
+          </button>
         </div>
       </div>
 
       {/* Navegación Rápida */}
-      <QuickNav />
       
       {/* Cards de Cantidades */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -101,7 +113,9 @@ export function DashboardPage() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600 mb-1">Productos</p>
-              <p className="text-3xl font-bold text-gray-900">156</p>
+              <p className="text-3xl font-bold text-gray-900">
+                {loading ? '...' : stats.products.total}
+              </p>
             </div>
             <div className="p-4 bg-blue-100 rounded-2xl">
               <Package className="w-8 h-8 text-blue-600" />
@@ -114,7 +128,9 @@ export function DashboardPage() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600 mb-1">Materia Prima</p>
-              <p className="text-3xl font-bold text-gray-900">89</p>
+              <p className="text-3xl font-bold text-gray-900">
+                {loading ? '...' : (stats.products.byCategory?.materia_prima || 0)}
+              </p>
             </div>
             <div className="p-4 bg-green-100 rounded-2xl">
               <Leaf className="w-8 h-8 text-green-600" />
@@ -127,7 +143,9 @@ export function DashboardPage() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600 mb-1">Productos Terminados</p>
-              <p className="text-3xl font-bold text-gray-900">67</p>
+              <p className="text-3xl font-bold text-gray-900">
+                {loading ? '...' : (stats.products.byCategory?.producto_terminado || 0)}
+              </p>
             </div>
             <div className="p-4 bg-purple-100 rounded-2xl">
               <Sparkles className="w-8 h-8 text-purple-600" />
@@ -140,7 +158,9 @@ export function DashboardPage() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600 mb-1">Clientes</p>
-              <p className="text-3xl font-bold text-gray-900">234</p>
+              <p className="text-3xl font-bold text-gray-900">
+                {loading ? '...' : stats.clients.total}
+              </p>
             </div>
             <div className="p-4 bg-orange-100 rounded-2xl">
               <Users className="w-8 h-8 text-orange-600" />
@@ -156,7 +176,9 @@ export function DashboardPage() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600 mb-1">Proveedores</p>
-              <p className="text-3xl font-bold text-gray-900">45</p>
+              <p className="text-3xl font-bold text-gray-900">
+                {loading ? '...' : stats.suppliers.total}
+              </p>
             </div>
             <div className="p-4 bg-indigo-100 rounded-2xl">
               <Factory className="w-8 h-8 text-indigo-600" />
@@ -164,15 +186,17 @@ export function DashboardPage() {
           </div>
         </div>
 
-        {/* Total General */}
+        {/* Lotes */}
         <div className="stats-card card-hover border-l-4 border-red-500">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600 mb-1">Total General</p>
-              <p className="text-3xl font-bold text-gray-900">591</p>
+              <p className="text-sm font-medium text-gray-600 mb-1">Lotes Activos</p>
+              <p className="text-3xl font-bold text-gray-900">
+                {loading ? '...' : stats.batches.total}
+              </p>
             </div>
             <div className="p-4 bg-red-100 rounded-2xl">
-              <BarChart3 className="w-8 h-8 text-red-600" />
+              <Box className="w-8 h-8 text-red-600" />
             </div>
           </div>
         </div>
@@ -185,7 +209,9 @@ export function DashboardPage() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-green-100 mb-1">Ventas del Mes</p>
-              <p className="text-4xl font-bold">$24,580</p>
+              <p className="text-4xl font-bold">
+                {loading ? '...' : formatCurrency(stats.sales.monthly)}
+              </p>
             </div>
             <div className="p-4 bg-white bg-opacity-20 rounded-2xl backdrop-blur-sm">
               <DollarSign className="w-8 h-8 text-white" />
@@ -198,7 +224,9 @@ export function DashboardPage() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-purple-100 mb-1">Ganancia del Mes</p>
-              <p className="text-4xl font-bold">$8,420</p>
+              <p className="text-4xl font-bold">
+                {loading ? '...' : formatCurrency(stats.sales.profit)}
+              </p>
             </div>
             <div className="p-4 bg-white bg-opacity-20 rounded-2xl backdrop-blur-sm">
               <TrendingUp className="w-8 h-8 text-white" />
@@ -231,30 +259,26 @@ export function DashboardPage() {
                   boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
                 }}
               />
-              <Bar dataKey="ventas" fill="#3B82F6" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="quantity" fill="#3B82F6" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
 
-        {/* Producción por Períodos - Gráfico de Línea/Área */}
+        {/* Ventas Mensuales - Gráfico de Línea/Área */}
         <div className="chart-container card-hover">
           <div className="flex items-center justify-between mb-6">
-            <h3 className="text-xl font-semibold text-gray-900">Producción por Períodos</h3>
+            <h3 className="text-xl font-semibold text-gray-900">Ventas Mensuales</h3>
             <div className="flex items-center space-x-4 text-sm">
               <div className="flex items-center space-x-2">
                 <span className="w-3 h-3 bg-green-500 rounded-full"></span>
-                <span className="text-gray-500">Producción</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <span className="w-3 h-3 bg-red-500 rounded-full"></span>
-                <span className="text-gray-500">Meta</span>
+                <span className="text-gray-500">Ventas</span>
               </div>
             </div>
           </div>
           <ResponsiveContainer width="100%" height={300}>
-            <AreaChart data={productionData}>
+            <AreaChart data={monthlyData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
-              <XAxis dataKey="mes" stroke="#6b7280" fontSize={12} />
+              <XAxis dataKey="month" stroke="#6b7280" fontSize={12} />
               <YAxis stroke="#6b7280" fontSize={12} />
               <Tooltip 
                 contentStyle={{
@@ -263,121 +287,19 @@ export function DashboardPage() {
                   borderRadius: '8px',
                   boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
                 }}
+                formatter={(value) => [formatCurrency(value), 'Ventas']}
               />
               <Area 
                 type="monotone" 
-                dataKey="produccion" 
+                dataKey="total" 
                 stackId="1" 
                 stroke="#10B981" 
                 fill="#10B981" 
                 fillOpacity={0.3} 
                 strokeWidth={2}
               />
-              <Line 
-                type="monotone" 
-                dataKey="meta" 
-                stroke="#EF4444" 
-                strokeWidth={3} 
-                strokeDasharray="5 5" 
-                dot={{ fill: '#EF4444', strokeWidth: 2, r: 4 }}
-              />
             </AreaChart>
           </ResponsiveContainer>
-        </div>
-      </div>
-
-      {/* Gráfico de Distribución de Inversión - Pastel/Dona */}
-      <div className="chart-container card-hover">
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="text-xl font-semibold text-gray-900">Distribución de Inversión</h3>
-          
-          {/* Filtros de Año y Mes */}
-          <div className="flex items-center space-x-4">
-            <div className="flex items-center space-x-2">
-              <label className="text-sm font-medium text-gray-700">Año:</label>
-              <select 
-                value={selectedYear} 
-                onChange={(e) => setSelectedYear(Number(e.target.value))}
-                className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-all duration-200"
-              >
-                {years.map(year => (
-                  <option key={year} value={year}>{year}</option>
-                ))}
-              </select>
-            </div>
-            
-            <div className="flex items-center space-x-2">
-              <label className="text-sm font-medium text-gray-700">Mes:</label>
-              <select 
-                value={selectedMonth} 
-                onChange={(e) => setSelectedMonth(Number(e.target.value))}
-                className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-all duration-200"
-              >
-                {months.map(month => (
-                  <option key={month.value} value={month.value}>{month.label}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-        </div>
-        
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Gráfico de Pastel */}
-          <div className="flex justify-center">
-            <ResponsiveContainer width="100%" height={350}>
-              <PieChart>
-                <Pie
-                  data={investmentData}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                  outerRadius={100}
-                  innerRadius={60}
-                  fill="#8884d8"
-                  dataKey="value"
-                  paddingAngle={2}
-                >
-                  {investmentData.map((entry, index) => {
-                    const IconComponent = entry.icon;
-                    return (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    );
-                  })}
-                </Pie>
-                <Tooltip 
-                  contentStyle={{
-                    backgroundColor: 'white',
-                    border: '1px solid #e5e7eb',
-                    borderRadius: '8px',
-                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-                  }}
-                />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-          
-          {/* Leyenda y Detalles */}
-          <div className="space-y-4">
-            <h4 className="text-lg font-semibold text-gray-900 mb-4">Desglose de Inversión</h4>
-            {investmentData.map((item, index) => {
-              const IconComponent = item.icon;
-              return (
-                <div key={index} className="flex items-center justify-between p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors duration-200">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center shadow-sm">
-                      <IconComponent className="w-5 h-5" style={{ color: item.color }} />
-                    </div>
-                    <span className="font-medium text-gray-900">{item.name}</span>
-                  </div>
-                  <div className="text-right">
-                    <span className="text-2xl font-bold text-gray-900">{item.value}%</span>
-                    <p className="text-sm text-gray-500">del total</p>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
         </div>
       </div>
     </div>

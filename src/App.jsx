@@ -3,6 +3,7 @@ import './App.css';
 
 // Importar tus componentes originales
 import { Login } from '@/components/Login';
+import { ResetPassword } from '@/components/ResetPassword';
 import { DashboardPage } from '@/pages/DashboardPage';
 import { ProductosPage } from '@/pages/ProductosPage';
 import { ClientesPage } from '@/pages/ClientesPage';
@@ -11,6 +12,7 @@ import { RecetasPage } from '@/pages/RecetasPage';
 import { InventarioPage } from '@/pages/InventarioPage';
 import { VentasPage } from '@/pages/VentasPage';
 import { ComprasPage } from '@/pages/ComprasPage';
+import { LotesPage } from '@/pages/LotesPage';
 import { PerfilPage } from '@/pages/PerfilPage';
 import { Sidebar } from '@/components/Sidebar';
 import { Breadcrumb } from '@/components/Breadcrumb';
@@ -41,7 +43,7 @@ function App() {
   // Función para renderizar el layout con sidebar
   const renderLayout = (Component) => (
     <div className="flex h-screen bg-gray-50">
-      <Sidebar onCollapseChange={setCollapsed} />
+      <Sidebar onCollapseChange={setCollapsed} isCollapsed={isCollapsed} />
       <div className={`flex-1 ${getSidebarMargin()} flex flex-col overflow-hidden transition-all duration-300`}>
         <Breadcrumb />
         <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-50 p-6">
@@ -66,6 +68,7 @@ function App() {
             <Route path="/inventario" element={renderLayout(InventarioPage)} />
             <Route path="/ventas" element={renderLayout(VentasPage)} />
             <Route path="/compras" element={renderLayout(ComprasPage)} />
+            <Route path="/lotes" element={renderLayout(LotesPage)} />
             <Route path="/perfil" element={renderLayout(PerfilPage)} />
             <Route path="/login" element={<Navigate to="/dashboard" />} />
             <Route path="*" element={<Navigate to="/dashboard" />} />
@@ -74,6 +77,7 @@ function App() {
           // Rutas públicas cuando no hay usuario logueado
           <>
             <Route path="/login" element={<Login />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="*" element={<Navigate to="/login" />} />
           </>
         )}

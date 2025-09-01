@@ -147,22 +147,16 @@ export function ClientesPage() {
   // Manejar guardar cliente
   const handleSaveClient = async (clientData) => {
     try {
-      console.log('Guardando cliente:', clientData);
       
       if (editingClient) {
-        console.log('Actualizando cliente existente:', editingClient._id);
         const result = await updateClient(editingClient._id, clientData);
-        console.log('Resultado de actualización:', result);
       } else {
-        console.log('Creando nuevo cliente');
         const result = await createClient(clientData);
-        console.log('Resultado de creación:', result);
       }
       
       setShowModal(false);
       setEditingClient(null);
     } catch (error) {
-      console.error('Error al guardar cliente:', error);
       // El error se maneja automáticamente en el hook useClients
     }
   };
@@ -243,16 +237,6 @@ export function ClientesPage() {
     distribuidor: clients.filter(client => client.type === 'distribuidor').length
   };
 
-  // Debug: Log del estado actual
-  console.log('Estado actual de ClientesPage:', {
-    clients: clients.length,
-    loading,
-    error,
-    pagination,
-    searchTerm,
-    filters
-  });
-
   if (loading && clients.length === 0) {
     return (
       <div className="space-y-6">
@@ -277,28 +261,31 @@ export function ClientesPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold text-gray-900">Clientes</h1>
-        <div className="flex gap-2">
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+        <div className="flex-1">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Gestión de Clientes</h1>
+          <p className="text-gray-600 text-sm sm:text-base">Administra la base de datos de clientes</p>
+        </div>
+        <div className="flex flex-col sm:flex-row gap-2">
           <Button 
             variant="outline"
             onClick={() => {
-              console.log('Probando conexión con backend...');
               fetchClients().then(() => {
-                console.log('Conexión exitosa, clientes cargados:', clients.length);
               }).catch(err => {
                 console.error('Error de conexión:', err);
               });
             }}
+            className="w-full sm:w-auto"
           >
             🔍 Probar Conexión
           </Button>
           <Button 
-            className="bg-purple-600 hover:bg-purple-700"
+            className="bg-purple-600 hover:bg-purple-700 w-full sm:w-auto"
             onClick={handleNewClient}
           >
             <Plus className="w-4 h-4 mr-2" />
-            Nuevo Cliente
+            <span className="hidden sm:inline">Nuevo Cliente</span>
+            <span className="sm:hidden">Nuevo</span>
           </Button>
         </div>
       </div>
@@ -322,21 +309,21 @@ export function ClientesPage() {
       )}
 
       {/* Estadísticas */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
         {[
           { title: 'Total Clientes', value: stats.total, icon: '👥', color: 'bg-blue-500' },
           { title: 'Clientes Activos', value: stats.active, icon: '✅', color: 'bg-green-500' },
           { title: 'Clientes Inactivos', value: stats.inactive, icon: '❌', color: 'bg-red-500' },
           { title: 'Empresas', value: stats.empresa, icon: '🏢', color: 'bg-purple-500' }
         ].map((stat, index) => (
-          <div key={index} className="bg-white shadow rounded-lg border border-gray-200 p-6">
-            <div className="flex items-center">
-              <div className={`h-12 w-12 ${stat.color} rounded-lg flex items-center justify-center mr-4`}>
+          <div key={index} className="bg-white shadow rounded-lg border border-gray-200 p-4 sm:p-6">
+            <div className="flex flex-col sm:flex-row sm:items-center text-center sm:text-left">
+              <div className={`h-12 w-12 ${stat.color} rounded-lg flex items-center justify-center mx-auto sm:mx-0 sm:mr-4 mb-3 sm:mb-0`}>
                 <span className="text-white text-xl">{stat.icon}</span>
               </div>
               <div>
                 <p className="text-sm font-medium text-gray-500">{stat.title}</p>
-                <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
+                <p className="text-xl sm:text-2xl font-bold text-gray-900">{stat.value}</p>
               </div>
             </div>
           </div>
@@ -456,142 +443,239 @@ export function ClientesPage() {
             </p>
           </div>
         ) : (
-          <div className="p-6">
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Cliente
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Tipo
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Estado
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Límite de Crédito
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Acciones
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {clients.map((client) => (
-                    <tr key={client._id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">{client.name}</div>
-                        <div className="text-sm text-gray-500">{client.email || 'Sin email'}</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+          <>
+            {/* Vista de tarjetas para móviles */}
+            <div className="lg:hidden p-4 sm:p-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {clients.map((client) => (
+                  <div key={client._id} className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+                    {/* Header de la tarjeta */}
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex-1">
+                        <h4 className="font-semibold text-gray-900 text-sm">{client.name}</h4>
+                        <p className="text-xs text-gray-600">{client.email || 'Sin email'}</p>
+                      </div>
+                      <div className="flex flex-col items-end gap-2">
                         {getTypeBadge(client.type)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
                         {getStatusBadge(client)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">
-                          {formatCurrency(client.creditLimit || 0)}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <div className="flex space-x-2">
-                          <Button 
-                            size="sm" 
-                            variant="outline" 
-                            onClick={() => handleViewClient(client)}
-                          >
-                            <Eye className="w-4 h-4 mr-1" />
-                            Ver
-                          </Button>
-                          <Button 
-                            size="sm" 
-                            variant="outline" 
-                            onClick={() => handleEditClient(client)}
-                          >
-                            <Edit className="w-4 h-4 mr-1" />
-                            Editar
-                          </Button>
-                          <Button 
-                            size="sm" 
-                            variant="outline"
-                            onClick={() => handleStatusChange(client)}
-                            className={client.isActive ? 'text-red-600 hover:text-red-800' : 'text-green-600 hover:text-green-800'}
-                          >
-                            {(() => {
-                              if (client.status) {
-                                const statusOrder = ['Activo', 'Pendiente', 'Inactivo', 'Bloqueado'];
-                                const currentIndex = statusOrder.indexOf(client.status);
-                                const nextIndex = (currentIndex + 1) % statusOrder.length;
-                                const nextStatus = statusOrder[nextIndex];
-                                return (
-                                  <>
-                                    <ToggleLeft className="w-4 h-4 mr-1" />
-                                    Cambiar a {nextStatus}
-                                  </>
-                                );
-                              } else {
-                                return client.isActive ? (
-                                  <>
-                                    <ToggleLeft className="w-4 h-4 mr-1" />
-                                    Desactivar
-                                  </>
-                                ) : (
-                                  <>
-                                    <ToggleRight className="w-4 h-4 mr-1" />
-                                    Activar
-                                  </>
-                                );
-                              }
-                            })()}
-                          </Button>
-                          <Button 
-                            size="sm" 
-                            variant="outline"
-                            onClick={() => handleDeleteClient(client)}
-                            className="text-red-600 hover:text-red-800"
-                          >
-                            <Trash2 className="w-4 h-4 mr-1" />
-                            Eliminar
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Paginación */}
-            {pagination.totalPages > 1 && (
-              <div className="mt-6 flex justify-center">
-                <div className="flex items-center space-x-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => changePage(pagination.currentPage - 1)}
-                    disabled={pagination.currentPage === 1}
-                  >
-                    Anterior
-                  </Button>
-                  
-                  <span className="text-sm text-gray-600">
-                    Página {pagination.currentPage} de {pagination.totalPages}
-                  </span>
-                  
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => changePage(pagination.currentPage + 1)}
-                    disabled={pagination.currentPage === pagination.totalPages}
-                  >
-                    Siguiente
-                  </Button>
-                </div>
+                      </div>
+                    </div>
+                    
+                    {/* Información adicional */}
+                    <div className="mb-4">
+                      <p className="text-xs text-gray-600">
+                        Límite: {formatCurrency(client.creditLimit || 0)}
+                      </p>
+                    </div>
+                    
+                    {/* Acciones */}
+                    <div className="flex flex-wrap gap-2">
+                      <Button 
+                        size="sm" 
+                        variant="outline" 
+                        onClick={() => handleViewClient(client)}
+                        className="flex-1 text-xs p-2"
+                      >
+                        <Eye className="w-3 h-3 mr-1" />
+                        Ver
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        variant="outline" 
+                        onClick={() => handleEditClient(client)}
+                        className="flex-1 text-xs p-2"
+                      >
+                        <Edit className="w-3 h-3 mr-1" />
+                        Editar
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => handleStatusChange(client)}
+                        className={`flex-1 text-xs p-2 ${
+                          client.isActive ? 'text-red-600 hover:text-red-800' : 'text-green-600 hover:text-green-800'
+                        }`}
+                      >
+                        {(() => {
+                          if (client.status) {
+                            const statusOrder = ['Activo', 'Pendiente', 'Inactivo', 'Bloqueado'];
+                            const currentIndex = statusOrder.indexOf(client.status);
+                            const nextIndex = (currentIndex + 1) % statusOrder.length;
+                            const nextStatus = statusOrder[nextIndex];
+                            return (
+                              <>
+                                <ToggleLeft className="w-3 h-3 mr-1" />
+                                {nextStatus}
+                              </>
+                            );
+                          } else {
+                            return client.isActive ? (
+                              <>
+                                <ToggleLeft className="w-3 h-3 mr-1" />
+                                Desactivar
+                              </>
+                            ) : (
+                              <>
+                                <ToggleRight className="w-3 h-3 mr-1" />
+                                Activar
+                              </>
+                            );
+                          }
+                        })()}
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => handleDeleteClient(client)}
+                        className="flex-1 text-xs p-2 text-red-600 hover:text-red-800"
+                      >
+                        <Trash2 className="w-3 h-3 mr-1" />
+                        Eliminar
+                      </Button>
+                    </div>
+                  </div>
+                ))}
               </div>
-            )}
+            </div>
+            
+            {/* Vista de tabla para desktop */}
+            <div className="hidden lg:block p-6">
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Cliente
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Tipo
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Estado
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Límite de Crédito
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Acciones
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {clients.map((client) => (
+                      <tr key={client._id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm font-medium text-gray-900">{client.name}</div>
+                          <div className="text-sm text-gray-500">{client.email || 'Sin email'}</div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          {getTypeBadge(client.type)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          {getStatusBadge(client)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-900">
+                            {formatCurrency(client.creditLimit || 0)}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                          <div className="flex space-x-2">
+                            <Button 
+                              size="sm" 
+                              variant="outline" 
+                              onClick={() => handleViewClient(client)}
+                            >
+                              <Eye className="w-4 h-4 mr-1" />
+                              Ver
+                            </Button>
+                            <Button 
+                              size="sm" 
+                              variant="outline" 
+                              onClick={() => handleEditClient(client)}
+                            >
+                              <Edit className="w-4 h-4 mr-1" />
+                              Editar
+                            </Button>
+                            <Button 
+                              size="sm" 
+                              variant="outline"
+                              onClick={() => handleStatusChange(client)}
+                              className={client.isActive ? 'text-red-600 hover:text-red-800' : 'text-green-600 hover:text-green-800'}
+                            >
+                              {(() => {
+                                if (client.status) {
+                                  const statusOrder = ['Activo', 'Pendiente', 'Inactivo', 'Bloqueado'];
+                                  const currentIndex = statusOrder.indexOf(client.status);
+                                  const nextIndex = (currentIndex + 1) % statusOrder.length;
+                                  const nextStatus = statusOrder[nextIndex];
+                                  return (
+                                    <>
+                                      <ToggleLeft className="w-4 h-4 mr-1" />
+                                      Cambiar a {nextStatus}
+                                    </>
+                                  );
+                                } else {
+                                  return client.isActive ? (
+                                    <>
+                                      <ToggleLeft className="w-4 h-4 mr-1" />
+                                      Desactivar
+                                    </>
+                                  ) : (
+                                    <>
+                                      <ToggleRight className="w-4 h-4 mr-1" />
+                                      Activar
+                                    </>
+                                  );
+                                }
+                              })()}
+                            </Button>
+                            <Button 
+                              size="sm" 
+                              variant="outline"
+                              onClick={() => handleDeleteClient(client)}
+                              className="text-red-600 hover:text-red-800"
+                            >
+                              <Trash2 className="w-4 h-4 mr-1" />
+                              Eliminar
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* Paginación */}
+        {pagination.totalPages > 1 && (
+          <div className="mt-6 flex justify-center">
+            <div className="flex items-center space-x-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => changePage(pagination.currentPage - 1)}
+                disabled={pagination.currentPage === 1}
+              >
+                Anterior
+              </Button>
+              
+              <span className="text-sm text-gray-600">
+                Página {pagination.currentPage} de {pagination.totalPages}
+              </span>
+              
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => changePage(pagination.currentPage + 1)}
+                disabled={pagination.currentPage === pagination.totalPages}
+              >
+                Siguiente
+              </Button>
+            </div>
           </div>
         )}
       </div>

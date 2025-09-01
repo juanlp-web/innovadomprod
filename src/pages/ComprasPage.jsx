@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Plus, Edit, Trash2, Search, ShoppingCart, Package, Truck, DollarSign, AlertCircle } from 'lucide-react'
+import { Plus, Edit, Trash2, Search, ShoppingCart, Package, Truck, DollarSign, AlertCircle, Package2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { usePurchases } from '@/hooks/usePurchases'
 import { useSuppliers } from '@/hooks/useSuppliers'
@@ -166,18 +166,21 @@ export function ComprasPage() {
   return (
     <div className="space-y-8 animate-fade-in">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">Gestión de Compras</h1>
-          <p className="text-gray-600">Administra las compras y proveedores</p>
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+        <div className="flex-1">
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 mb-2">Gestión de Compras</h1>
+          <p className="text-gray-600 text-sm sm:text-base">Administra las compras y proveedores</p>
         </div>
-        <Button 
-          onClick={() => setShowForm(true)}
-          className="btn-primary flex items-center space-x-2 shadow-medium hover:shadow-strong transform hover:-translate-y-1 transition-all duration-300"
-        >
-          <Plus className="w-5 h-5" />
-          <span>Nueva Compra</span>
-        </Button>
+        <div className="flex-shrink-0">
+          <Button 
+            onClick={() => setShowForm(true)}
+            className="w-full lg:w-auto btn-primary flex items-center justify-center space-x-2 shadow-medium hover:shadow-strong transform hover:-translate-y-1 transition-all duration-300"
+          >
+            <Plus className="w-5 h-5" />
+            <span className="hidden sm:inline">Nueva Compra</span>
+            <span className="sm:hidden">Nueva</span>
+          </Button>
+        </div>
       </div>
 
       {/* Mostrar error si existe */}
@@ -200,10 +203,10 @@ export function ComprasPage() {
       )}
 
       {/* Filtros y Búsqueda */}
-      <div className="card card-hover p-6">
-        <div className="flex flex-col lg:flex-row gap-4">
+      <div className="card card-hover p-4 sm:p-6">
+        <div className="flex flex-col gap-4">
           {/* Búsqueda */}
-          <div className="flex-1 relative">
+          <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
             <input
               type="text"
@@ -215,11 +218,11 @@ export function ComprasPage() {
           </div>
           
           {/* Filtros */}
-          <div className="flex flex-wrap gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             <select
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
-              className="px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 sm:px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
             >
               <option value="todos">Todos los estados</option>
               {statuses.map(status => (
@@ -230,7 +233,7 @@ export function ComprasPage() {
             <select
               value={filterCategory}
               onChange={(e) => setFilterCategory(e.target.value)}
-              className="px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 sm:px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
             >
               <option value="todos">Todas las categorías</option>
               {categories.map(category => (
@@ -241,11 +244,11 @@ export function ComprasPage() {
             <select
               value={filterSupplier}
               onChange={(e) => setFilterSupplier(e.target.value)}
-              className="px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 sm:px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
             >
               <option value="todos">Todos los proveedores</option>
               {suppliers.map(supplier => (
-                <option key={supplier._id} value={supplier._id}>{supplier.name}</option>
+                <option key={supplier._id} value={supplier.name}>{supplier.name}</option>
               ))}
             </select>
           </div>
@@ -254,8 +257,8 @@ export function ComprasPage() {
 
       {/* Lista de Compras */}
       <div className="card card-hover">
-        <div className="p-6 border-b border-gray-100">
-          <div className="flex items-center justify-between">
+        <div className="p-4 sm:p-6 border-b border-gray-100">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <h3 className="text-lg font-semibold text-gray-900">
               Compras ({pagination.total})
             </h3>
@@ -267,26 +270,26 @@ export function ComprasPage() {
         </div>
         
         {/* Vista en Grid */}
-        <div className="p-6">
+        <div className="p-4 sm:p-6">
           {loading ? (
             <div className="flex items-center justify-center py-12">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
             </div>
           ) : (
             <>
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                 {purchases.map((purchase) => {
                   const statusInfo = getStatusInfo(purchase.status)
                   
                   return (
-                    <div key={purchase._id} className="bg-white border border-gray-200 rounded-xl p-6 hover:shadow-medium transition-all duration-200">
+                    <div key={purchase._id} className="bg-white border border-gray-200 rounded-xl p-4 sm:p-6 hover:shadow-medium transition-all duration-200">
                       {/* Header de la compra */}
-                      <div className="flex items-start justify-between mb-4">
+                      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 mb-4">
                         <div className="flex-1">
-                          <h4 className="text-lg font-semibold text-gray-900 mb-1">{purchase.purchaseNumber}</h4>
+                          <h4 className="text-base sm:text-lg font-semibold text-gray-900 mb-1">{purchase.purchaseNumber}</h4>
                           <p className="text-sm text-gray-600">{purchase.supplierName}</p>
                         </div>
-                        <div className="flex items-center space-x-2">
+                        <div className="flex items-center space-x-2 self-start">
                           <span className={`px-2 py-1 text-xs rounded-full ${statusInfo.bgColor} ${statusInfo.color}`}>
                             {statusInfo.label}
                           </span>
@@ -301,8 +304,19 @@ export function ComprasPage() {
                         </div>
                         <div className="space-y-1">
                           {purchase.items.slice(0, 3).map((item, index) => (
-                            <div key={index} className="text-xs text-gray-600">
-                              {item.quantity} {item.unit} {item.productName} - {formatCurrency(item.total)}
+                            <div key={index} className="text-xs text-gray-600 flex items-center justify-between">
+                              <span>
+                                {item.quantity} {item.unit} {item.productName} - {formatCurrency(item.total)}
+                              </span>
+                              {(() => {
+                                const product = products.find(p => p._id === item.product)
+                                return product?.managesBatches ? (
+                                  <div className="flex items-center space-x-1 text-blue-600">
+                                    <Package2 className="w-3 h-3" />
+                                    <span className="text-xs">Lotes</span>
+                                  </div>
+                                ) : null
+                              })()}
                             </div>
                           ))}
                           {purchase.items.length > 3 && (

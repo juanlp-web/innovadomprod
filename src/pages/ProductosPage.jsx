@@ -11,7 +11,8 @@ import {
   AlertTriangle,
   CheckCircle,
   XCircle,
-  Loader2
+  Loader2,
+  Package2
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useProducts } from '@/hooks/useProducts'
@@ -43,7 +44,8 @@ export function ProductosPage() {
     description: '',
     price: 0,
     supplier: '',
-    cost: 0
+    cost: 0,
+    managesBatches: false
   })
 
   const units = [
@@ -126,7 +128,8 @@ export function ProductosPage() {
       description: product.description || '',
       price: product.price || 0,
       supplier: product.supplier || '',
-      cost: product.cost || 0
+      cost: product.cost || 0,
+      managesBatches: product.managesBatches || false
     })
     setShowForm(true)
   }
@@ -149,7 +152,8 @@ export function ProductosPage() {
       description: '',
       price: 0,
       supplier: '',
-      cost: 0
+      cost: 0,
+      managesBatches: false
     })
   }
 
@@ -191,23 +195,26 @@ export function ProductosPage() {
   return (
     <div className="space-y-8 animate-fade-in">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">Gestión de Productos</h1>
-          <p className="text-gray-600">Administra el catálogo de productos, materias primas y envases</p>
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+        <div className="flex-1">
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 mb-2">Gestión de Productos</h1>
+          <p className="text-gray-600 text-sm sm:text-base">Administra el catálogo de productos, materias primas y envases</p>
         </div>
-        <Button 
-          onClick={() => setShowForm(true)}
-          className="btn-primary flex items-center space-x-2 shadow-medium hover:shadow-strong transform hover:-translate-y-1 transition-all duration-300"
-        >
-          <Plus className="w-5 h-5" />
-          <span>Nuevo Producto</span>
-        </Button>
+        <div className="flex-shrink-0">
+          <Button 
+            onClick={() => setShowForm(true)}
+            className="w-full lg:w-auto btn-primary flex items-center justify-center space-x-2 shadow-medium hover:shadow-strong transform hover:-translate-y-1 transition-all duration-300"
+          >
+            <Plus className="w-5 h-5" />
+            <span className="hidden sm:inline">Nuevo Producto</span>
+            <span className="sm:hidden">Nuevo</span>
+          </Button>
+        </div>
       </div>
 
       {/* Filtros y Búsqueda */}
-      <div className="flex flex-col sm:flex-row gap-4">
-        <div className="flex-1 relative">
+      <div className="flex flex-col gap-4">
+        <div className="relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
           <input
             type="text"
@@ -217,23 +224,25 @@ export function ProductosPage() {
             className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           />
         </div>
-        <select
-          value={filterType}
-          onChange={(e) => setFilterType(e.target.value)}
-          className="px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-        >
-          <option value="todos">Todos los tipos</option>
-          {inventoryTypes.map(type => (
-            <option key={type.value} value={type.value}>{type.label}</option>
-          ))}
-        </select>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          <select
+            value={filterType}
+            onChange={(e) => setFilterType(e.target.value)}
+            className="w-full px-3 sm:px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+          >
+            <option value="todos">Todos los tipos</option>
+            {inventoryTypes.map(type => (
+              <option key={type.value} value={type.value}>{type.label}</option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {/* Formulario de Creación/Edición */}
       {showForm && (
-        <div className="card card-hover p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-bold text-gray-900">
+        <div className="card card-hover p-4 sm:p-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4 sm:mb-6">
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-900">
               {editingProduct ? 'Editar Producto' : 'Crear Nuevo Producto'}
             </h2>
             <Button
@@ -243,15 +252,16 @@ export function ProductosPage() {
                 setEditingProduct(null)
                 resetForm()
               }}
+              className="self-end sm:self-auto"
             >
               <XCircle className="w-5 h-5" />
             </Button>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
               {/* Nombre del Producto */}
-              <div className="md:col-span-2">
+              <div className="sm:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Nombre del Producto *
                 </label>
@@ -340,6 +350,32 @@ export function ProductosPage() {
                 />
               </div>
 
+              {/* Manejo de Lotes */}
+              <div className="sm:col-span-2">
+                <div className="flex items-start space-x-3">
+                  <input
+                    type="checkbox"
+                    id="managesBatches"
+                    name="managesBatches"
+                    checked={formData.managesBatches}
+                    onChange={(e) => setFormData(prev => ({
+                      ...prev,
+                      managesBatches: e.target.checked
+                    }))}
+                    className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2 mt-1 flex-shrink-0"
+                  />
+                  <div className="flex-1">
+                    <label htmlFor="managesBatches" className="text-sm font-medium text-gray-700 flex items-center space-x-2">
+                      <Package2 className="w-4 h-4 text-blue-500" />
+                      <span>Maneja lotes de producción</span>
+                    </label>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Marque esta opción si el producto requiere control de lotes con fechas de vencimiento
+                    </p>
+                  </div>
+                </div>
+              </div>
+
               {/* Costo */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -389,7 +425,7 @@ export function ProductosPage() {
             </div>
 
             {/* Botones */}
-            <div className="flex justify-end space-x-3">
+            <div className="flex flex-col sm:flex-row gap-3 sm:justify-end">
               <Button
                 type="button"
                 variant="outline"
@@ -398,22 +434,34 @@ export function ProductosPage() {
                   setEditingProduct(null)
                   resetForm()
                 }}
-                className="btn-secondary"
+                className="btn-secondary w-full sm:w-auto order-2 sm:order-1"
               >
                 Cancelar
               </Button>
               <Button 
                 type="submit" 
-                className="btn-primary"
+                className="btn-primary w-full sm:w-auto order-1 sm:order-2"
                 disabled={loading}
               >
                 {loading ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                    {editingProduct ? 'Actualizando...' : 'Creando...'}
+                    <span className="hidden sm:inline">
+                      {editingProduct ? 'Actualizando...' : 'Creando...'}
+                    </span>
+                    <span className="sm:hidden">
+                      {editingProduct ? 'Actualizando...' : 'Creando...'}
+                    </span>
                   </>
                 ) : (
-                  editingProduct ? 'Actualizar Producto' : 'Crear Producto'
+                  <>
+                    <span className="hidden sm:inline">
+                      {editingProduct ? 'Actualizar Producto' : 'Crear Producto'}
+                    </span>
+                    <span className="sm:hidden">
+                      {editingProduct ? 'Actualizar' : 'Crear'}
+                    </span>
+                  </>
                 )}
               </Button>
             </div>
@@ -423,7 +471,7 @@ export function ProductosPage() {
 
       {/* Lista de Productos */}
       <div className="card card-hover">
-        <div className="p-6 border-b border-gray-100">
+        <div className="p-4 sm:p-6 border-b border-gray-100">
           <h3 className="text-lg font-semibold text-gray-900">
             Productos ({filteredProducts.length})
           </h3>
@@ -436,7 +484,8 @@ export function ProductosPage() {
           </div>
         ) : (
           <>
-            <div className="overflow-x-auto">
+            {/* Vista en Tabla para pantallas grandes */}
+            <div className="hidden lg:block overflow-x-auto">
               <table className="w-full">
                 <thead className="table-header">
                   <tr>
@@ -448,6 +497,9 @@ export function ProductosPage() {
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Unidad
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Lotes
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Stock
@@ -488,6 +540,14 @@ export function ProductosPage() {
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-sm text-gray-900">
                             {product.unit}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center space-x-2">
+                            <Package2 className={`w-4 h-4 ${product.managesBatches ? 'text-blue-500' : 'text-gray-400'}`} />
+                            <span className={`text-sm ${product.managesBatches ? 'text-blue-600 font-medium' : 'text-gray-500'}`}>
+                              {product.managesBatches ? 'Maneja lotes' : 'Sin lotes'}
+                            </span>
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
@@ -534,6 +594,100 @@ export function ProductosPage() {
                   })}
                 </tbody>
               </table>
+            </div>
+
+            {/* Vista en Cards para pantallas pequeñas */}
+            <div className="lg:hidden">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4">
+                {filteredProducts.map((product) => {
+                  const typeInfo = getInventoryTypeInfo(product.category)
+                  const stockStatus = getStockStatus(product.stock, product.minStock)
+                  const TypeIcon = typeInfo.icon
+                  const StatusIcon = stockStatus.icon
+                  
+                  return (
+                    <div key={product._id} className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-medium transition-all duration-200">
+                      {/* Header del producto */}
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex-1">
+                          <h4 className="text-base font-semibold text-gray-900 mb-1">{product.name}</h4>
+                          {product.description && (
+                            <p className="text-sm text-gray-600 mb-1">{product.description}</p>
+                          )}
+                          {product.sku && (
+                            <p className="text-xs text-gray-400">SKU: {product.sku}</p>
+                          )}
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <TypeIcon className={`w-4 h-4 ${typeInfo.color}`} />
+                          <span className="text-xs text-gray-500">{typeInfo.label}</span>
+                        </div>
+                      </div>
+
+                      {/* Información del producto */}
+                      <div className="space-y-2 mb-4">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-gray-600">Unidad:</span>
+                          <span className="font-medium">{product.unit}</span>
+                        </div>
+                        
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-gray-600">Lotes:</span>
+                          <div className="flex items-center space-x-1">
+                            <Package2 className={`w-4 h-4 ${product.managesBatches ? 'text-blue-500' : 'text-gray-400'}`} />
+                            <span className={`text-xs ${product.managesBatches ? 'text-blue-600 font-medium' : 'text-gray-500'}`}>
+                              {product.managesBatches ? 'Maneja lotes' : 'Sin lotes'}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-gray-600">Stock:</span>
+                          <div className="flex items-center space-x-1">
+                            <StatusIcon className={`w-4 h-4 ${stockStatus.color}`} />
+                            <span className="font-medium">{product.stock} {product.unit}</span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-gray-600">Mínimo:</span>
+                          <span className="text-gray-500">{product.minStock} {product.unit}</span>
+                        </div>
+
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-gray-600">Precio:</span>
+                          <span className="font-medium text-green-600">${product.price.toFixed(2)}</span>
+                        </div>
+
+                        {product.cost > 0 && (
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-gray-600">Costo:</span>
+                            <span className="text-gray-500">${product.cost.toFixed(2)}</span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Acciones */}
+                      <div className="flex items-center justify-end space-x-2 pt-3 border-t border-gray-100">
+                        <button
+                          onClick={() => handleEdit(product)}
+                          className="text-blue-600 hover:text-blue-900 transition-colors duration-200 p-2 rounded-lg hover:bg-blue-50"
+                          title="Editar producto"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(product._id)}
+                          className="text-red-600 hover:text-red-900 transition-colors duration-200 p-2 rounded-lg hover:bg-red-50"
+                          title="Eliminar producto"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
             </div>
 
             {filteredProducts.length === 0 && (

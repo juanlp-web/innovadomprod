@@ -36,16 +36,26 @@ export const AuthProvider = ({ children }) => {
   const login = async (credentials) => {
     try {
       const response = await authAPI.login(credentials);
-      const { token: newToken, ...userData } = response.data;
       
-      localStorage.setItem('token', newToken);
-      localStorage.setItem('user', JSON.stringify(userData));
-      
-      setToken(newToken);
-      setUser(userData);
-      
-      return { success: true };
+      // Verificar que la respuesta sea exitosa
+      if (response.data.success) {
+        const { token: newToken, ...userData } = response.data.data;
+        
+        localStorage.setItem('token', newToken);
+        localStorage.setItem('user', JSON.stringify(userData));
+        
+        setToken(newToken);
+        setUser(userData);
+        
+        return { success: true };
+      } else {
+        return {
+          success: false,
+          message: response.data.message || 'Error en el login'
+        };
+      }
     } catch (error) {
+      console.error('Error en login:', error);
       return {
         success: false,
         message: error.response?.data?.message || 'Error en el login'
@@ -56,16 +66,26 @@ export const AuthProvider = ({ children }) => {
   const register = async (userData) => {
     try {
       const response = await authAPI.register(userData);
-      const { token: newToken, ...userInfo } = response.data;
       
-      localStorage.setItem('token', newToken);
-      localStorage.setItem('user', JSON.stringify(userInfo));
-      
-      setToken(newToken);
-      setUser(userInfo);
-      
-      return { success: true };
+      // Verificar que la respuesta sea exitosa
+      if (response.data.success) {
+        const { token: newToken, ...userInfo } = response.data.data;
+        
+        localStorage.setItem('token', newToken);
+        localStorage.setItem('user', JSON.stringify(userInfo));
+        
+        setToken(newToken);
+        setUser(userInfo);
+        
+        return { success: true };
+      } else {
+        return {
+          success: false,
+          message: response.data.message || 'Error en el registro'
+        };
+      }
     } catch (error) {
+      console.error('Error en registro:', error);
       return {
         success: false,
         message: error.response?.data?.message || 'Error en el registro'
@@ -83,16 +103,26 @@ export const AuthProvider = ({ children }) => {
   const updateProfile = async (profileData) => {
     try {
       const response = await authAPI.updateProfile(profileData);
-      const { token: newToken, ...userData } = response.data;
       
-      localStorage.setItem('token', newToken);
-      localStorage.setItem('user', JSON.stringify(userData));
-      
-      setToken(newToken);
-      setUser(userData);
-      
-      return { success: true };
+      // Verificar que la respuesta sea exitosa
+      if (response.data.success) {
+        const { token: newToken, ...userData } = response.data.data;
+        
+        localStorage.setItem('token', newToken);
+        localStorage.setItem('user', JSON.stringify(userData));
+        
+        setToken(newToken);
+        setUser(userData);
+        
+        return { success: true };
+      } else {
+        return {
+          success: false,
+          message: response.data.message || 'Error al actualizar perfil'
+        };
+      }
     } catch (error) {
+      console.error('Error al actualizar perfil:', error);
       return {
         success: false,
         message: error.response?.data?.message || 'Error al actualizar perfil'
@@ -114,19 +144,33 @@ export const AuthProvider = ({ children }) => {
 
   const refreshSession = async () => {
     try {
-      const token = localStorage.getItem('token');
-      if (!token) return false;
+      const response = await authAPI.refreshSession();
       
-      const response = await authAPI.getProfile();
-      const freshUser = response.data;
-      
-      localStorage.setItem('user', JSON.stringify(freshUser));
-      setUser(freshUser);
-      return true;
+      if (response.data.success) {
+        const { token: newToken, ...userData } = response.data.data;
+        
+        localStorage.setItem('token', newToken);
+        localStorage.setItem('user', JSON.stringify(userData));
+        
+        setToken(newToken);
+        setUser(userData);
+        
+        return { success: true };
+      } else {
+        // Limpiar sesión si hay error
+        logout();
+        return {
+          success: false,
+          message: response.data.message || 'Error al refrescar sesión'
+        };
+      }
     } catch (error) {
-      console.log('Error al refrescar sesión:', error);
+      // Limpiar sesión si hay error
       logout();
-      return false;
+      return {
+        success: false,
+        message: error.response?.data?.message || 'Error al refrescar sesión'
+      };
     }
   };
 

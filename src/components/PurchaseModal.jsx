@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { X, Plus, Trash2, Save, Loader2 } from 'lucide-react'
+import { X, Plus, Trash2, Save, Loader2, Package2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useSuppliers } from '@/hooks/useSuppliers'
 import { useProducts } from '@/hooks/useProducts'
@@ -25,6 +25,10 @@ export function PurchaseModal({
 
   const { suppliers } = useSuppliers()
   const { products } = useProducts()
+  const [availableBatches, setAvailableBatches] = useState({})
+  const [selectedBatches, setSelectedBatches] = useState({})
+  const [newBatchData, setNewBatchData] = useState({})
+  const [batchSearchTerm, setBatchSearchTerm] = useState({})
 
   // Inicializar formulario cuando se abre el modal
   useEffect(() => {
@@ -91,6 +95,21 @@ export function PurchaseModal({
         if (!item.price || item.price <= 0) {
           newErrors[`items.${index}.price`] = 'El precio debe ser mayor a 0'
         }
+        
+        // Validar lotes para productos que los manejan
+        if (item.product && products.find(p => p._id === item.product)?.managesBatches) {
+          if (!selectedBatches[item.product] && !newBatchData[item.product]) {
+            newErrors[`items.${index}.batch`] = 'Debe seleccionar un lote existente o crear uno nuevo'
+          } else if (newBatchData[item.product]) {
+            // Validar que se complete el número de lote y fecha de vencimiento
+            if (!newBatchData[item.product].batchNumber || !newBatchData[item.product].batchNumber.trim()) {
+              newErrors[`items.${index}.batchNumber`] = 'El número de lote es requerido'
+            }
+            if (!newBatchData[item.product].expirationDate) {
+              newErrors[`items.${index}.expirationDate`] = 'La fecha de vencimiento es requerida'
+            }
+          }
+        }
       })
     }
 
@@ -98,32 +117,102 @@ export function PurchaseModal({
     return Object.keys(newErrors).length === 0
   }
 
-  // Manejar cambios en el formulario
-  const handleInputChange = (field, value) => {
-    setFormData(prev => ({ ...prev, [field]: value }))
-    if (errors[field]) {
-      setErrors(prev => ({ ...prev, [field]: '' }))
+  // Cargar lotes disponibles cuando se selecciona un producto
+  const handleProductSelection = async (index, productId) => {
+    if (!productId) return
+    
+    try {
+      // Por ahora, no cargamos lotes existentes automáticamente
+      // Los lotes se crearán cuando se complete la compra
+      setAvailableBatches(prev => ({
+        ...prev,
+        [productId]: []
+      }))
+      
+      // Limpiar selección previa y datos de lotes
+      setSelectedBatches(prev => {
+        const newBatches = { ...prev }
+        delete newBatches[productId]
+        return newBatches
+      })
+      setNewBatchData(prev => {
+        const newData = { ...prev }
+        delete newData[productId]
+        return newData
+      })
+    } catch (err) {
+      console.error('Error al cargar lotes:', err)
+      setAvailableBatches(prev => ({
+        ...prev,
+        [productId]: []
+      }))
     }
   }
 
-  // Manejar cambios en items
+  // Manejar selección de lote existente
+  const handleBatchSelection = (productId, batchId) => {
+    if (!batchId) return
+    
+    // Buscar el lote seleccionado para obtener sus datos
+    const selectedBatch = availableBatches[productId]?.find(batch => batch._id === batchId)
+    
+    setSelectedBatches(prev => ({
+      ...prev,
+      [productId]: batchId
+    }))
+    
+    // Cargar automáticamente la fecha de vencimiento del lote seleccionado
+    if (selectedBatch) {
+      setNewBatchData(prev => ({
+        ...prev,
+        [productId]: {
+          batchNumber: selectedBatch.batchNumber,
+          expirationDate: selectedBatch.expirationDate ? new Date(selectedBatch.expirationDate).toISOString().split('T')[0] : '',
+          notes: selectedBatch.notes || ''
+        }
+      }))
+    }
+  }
+
+  // Manejar datos de nuevo lote
+  const handleNewBatchData = (productId, field, value) => {
+    setNewBatchData(prev => ({
+      ...prev,
+      [productId]: {
+        ...prev[productId],
+        [field]: value
+      }
+    }))
+    // Limpiar selección de lote existente
+    setSelectedBatches(prev => {
+      const newBatches = { ...prev }
+      delete newBatches[productId]
+      return newBatches
+    })
+  }
+
+  // Manejar cambios en el formulario
+  const handleInputChange = (field, value) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
+    }))
+  }
+
+  // Manejar cambios en los items
   const handleItemChange = (index, field, value) => {
     const newItems = [...formData.items]
     newItems[index][field] = value
     
-    // Calcular total del item
-    if (field === 'quantity' || field === 'price') {
-      const quantity = field === 'quantity' ? value : newItems[index].quantity
-      const price = field === 'price' ? value : newItems[index].price
-      newItems[index].total = quantity * price
+    // Si se cambió el producto, cargar lotes disponibles
+    if (field === 'product') {
+      handleProductSelection(index, value)
     }
     
-    setFormData(prev => ({ ...prev, items: newItems }))
-    
-    // Limpiar error del campo
-    if (errors[`items.${index}.${field}`]) {
-      setErrors(prev => ({ ...prev, [`items.${index}.${field}`]: '' }))
-    }
+    setFormData(prev => ({
+      ...prev,
+      items: newItems
+    }))
   }
 
   // Agregar item
@@ -175,9 +264,28 @@ export function PurchaseModal({
     setIsSubmitting(true)
     
     try {
+      // Preparar datos de la compra con información de lotes
       const purchaseData = {
         ...formData,
-        total: calculateTotal()
+        total: calculateTotal(),
+        items: formData.items.map((item, index) => {
+          const itemData = { ...item }
+          
+          // Agregar información de lotes si el producto los maneja
+          if (item.product && products.find(p => p._id === item.product)?.managesBatches) {
+            if (selectedBatches[item.product]) {
+              // Lote existente seleccionado
+              itemData.batch = selectedBatches[item.product]
+              itemData.batchType = 'existing'
+            } else if (newBatchData[item.product]) {
+              // Nuevo lote a crear
+              itemData.batchData = newBatchData[item.product]
+              itemData.batchType = 'new'
+            }
+          }
+          
+          return itemData
+        })
       }
       
       await onSave(purchaseData)
@@ -293,6 +401,19 @@ export function PurchaseModal({
             </div>
           </div>
 
+          {/* Mensaje informativo sobre lotes */}
+          <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
+            <div className="flex items-center space-x-2 mb-2">
+              <Package2 className="w-4 h-4 text-blue-500" />
+              <span className="text-sm font-medium text-blue-700">Sistema de Lotes</span>
+            </div>
+            <p className="text-xs text-blue-700">
+              Los productos que manejan lotes permiten: <strong>1)</strong> Seleccionar un lote existente (la fecha de vencimiento se carga automáticamente) 
+              o <strong>2)</strong> Crear un nuevo lote ingresando el número de lote y fecha de vencimiento. 
+              Esto mantiene la trazabilidad completa del inventario.
+            </p>
+          </div>
+
           {/* Productos */}
           <div>
             <div className="flex items-center justify-between mb-4">
@@ -317,7 +438,7 @@ export function PurchaseModal({
               {formData.items.map((item, index) => (
                 <div key={index} className="grid grid-cols-12 gap-3 p-4 border border-gray-200 rounded-lg">
                   {/* Producto */}
-                  <div className="col-span-4">
+                  <div className="col-span-3">
                     <select
                       value={item.product}
                       onChange={(e) => handleItemChange(index, 'product', e.target.value)}
@@ -411,6 +532,86 @@ export function PurchaseModal({
                       <Trash2 className="w-4 h-4" />
                     </Button>
                   </div>
+
+                  {/* Gestión de Lotes */}
+                  {item.product && products.find(p => p._id === item.product)?.managesBatches && (
+                    <div className="col-span-12 mt-3 p-3 bg-blue-50 rounded border border-blue-200">
+                      <div className="flex items-center space-x-2 mb-2">
+                        <Package2 className="w-4 h-4 text-blue-500" />
+                        <span className="text-sm font-medium text-blue-700">Gestión de Lotes</span>
+                      </div>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {/* Seleccionar Lote Existente */}
+                        <div>
+                          <label className="block text-xs font-medium text-blue-700 mb-1">
+                            Seleccionar Lote Existente
+                          </label>
+                          <select
+                            value={selectedBatches[item.product] || ''}
+                            onChange={(e) => handleBatchSelection(item.product, e.target.value)}
+                            className="w-full px-2 py-1 text-sm border border-blue-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          >
+                            <option value="">Seleccionar lote...</option>
+                            {availableBatches[item.product]?.map(batch => (
+                              <option key={batch._id} value={batch._id}>
+                                Lote #{batch.batchNumber} - Stock: {batch.currentStock} {batch.unit} - Vence: {batch.expirationDate ? new Date(batch.expirationDate).toLocaleDateString() : 'N/A'}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        {/* Crear/Editar Lote */}
+                        <div>
+                          <label className="block text-xs font-medium text-blue-700 mb-1">
+                            {selectedBatches[item.product] ? 'Editar Lote Seleccionado' : 'Crear Nuevo Lote'}
+                          </label>
+                          <div className="space-y-2">
+                            <input
+                              type="text"
+                              placeholder="Número de lote"
+                              value={newBatchData[item.product]?.batchNumber || ''}
+                              onChange={(e) => handleNewBatchData(item.product, 'batchNumber', e.target.value)}
+                              className="w-full px-2 py-1 text-sm border border-blue-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                            />
+                            <input
+                              type="date"
+                              placeholder="Fecha de vencimiento"
+                              value={newBatchData[item.product]?.expirationDate || ''}
+                              onChange={(e) => handleNewBatchData(item.product, 'expirationDate', e.target.value)}
+                              className="w-full px-2 py-1 text-sm border border-blue-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                            />
+                            <input
+                              type="text"
+                              placeholder="Notas del lote (opcional)"
+                              value={newBatchData[item.product]?.notes || ''}
+                              onChange={(e) => handleNewBatchData(item.product, 'notes', e.target.value)}
+                              className="w-full px-2 py-1 text-sm border border-blue-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Mensaje informativo */}
+                      <div className="mt-2 p-2 bg-blue-100 rounded text-xs text-blue-700">
+                        {selectedBatches[item.product] ? (
+                          <span>✅ Lote seleccionado. Los datos se han cargado automáticamente.</span>
+                        ) : (
+                          <span>📝 Complete el número de lote y fecha de vencimiento para crear un nuevo lote.</span>
+                        )}
+                      </div>
+
+                      {errors[`items.${index}.batch`] && (
+                        <p className="text-red-500 text-xs mt-2">{errors[`items.${index}.batch`]}</p>
+                      )}
+                      {errors[`items.${index}.batchNumber`] && (
+                        <p className="text-red-500 text-xs mt-1">{errors[`items.${index}.batchNumber`]}</p>
+                      )}
+                      {errors[`items.${index}.expirationDate`] && (
+                        <p className="text-red-500 text-xs mt-1">{errors[`items.${index}.expirationDate`]}</p>
+                      )}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

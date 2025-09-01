@@ -74,7 +74,7 @@
   /* Professional button styles */
   .btn-primary {
     background: linear-gradient(to right, rgb(37 99 235), rgb(29 78 216));
-    color: white;
+    color: white !important;
     font-weight: 500;
     padding: 0.75rem 1.5rem;
     border-radius: 0.5rem;

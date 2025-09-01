@@ -12,6 +12,7 @@ export const ROUTES = {
   COMPRAS: '/dashboard/compras',
   CLIENTES: '/dashboard/clientes',
   PROVEEDORES: '/dashboard/proveedores',
+  LOTES: '/dashboard/lotes',
   PERFIL: '/dashboard/perfil'
 }
 
@@ -71,6 +72,13 @@ export const MENU_ITEMS = [
     path: ROUTES.PROVEEDORES,
     icon: 'Factory',
     description: 'Gestión de proveedores'
+  },
+  {
+    id: 'lotes',
+    label: 'Lotes',
+    path: ROUTES.LOTES,
+    icon: 'Package2',
+    description: 'Gestión de lotes de producción'
   },
   {
     id: 'perfil',

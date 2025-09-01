@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
+import { useForgotPassword } from '@/hooks/useForgotPassword'
 import { 
   BarChart3, 
   Mail, 
@@ -8,31 +9,13 @@ import {
   Loader2
 } from 'lucide-react'
 
-export function ForgotPassword({ onBack, onResetPassword }) {
+export function ForgotPassword({ onBack }) {
   const [email, setEmail] = useState('')
-  const [isLoading, setIsLoading] = useState(false)
-  const [isSubmitted, setIsSubmitted] = useState(false)
-  const [error, setError] = useState('')
+  const { isLoading, isSubmitted, error, sendResetEmail, resetState } = useForgotPassword()
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    if (!email.trim()) {
-      setError('Por favor ingrese su correo electrónico')
-      return
-    }
-
-    setIsLoading(true)
-    setError('')
-    
-    try {
-      // Simular llamada a API
-      await new Promise(resolve => setTimeout(resolve, 1500))
-      setIsSubmitted(true)
-    } catch (error) {
-      setError('Error al enviar el correo. Intente nuevamente.')
-    } finally {
-      setIsLoading(false)
-    }
+    await sendResetEmail(email)
   }
 
   if (isSubmitted) {
@@ -67,7 +50,10 @@ export function ForgotPassword({ onBack, onResetPassword }) {
 
               <div className="pt-4">
                 <Button
-                  onClick={onBack}
+                  onClick={() => {
+                    resetState();
+                    onBack();
+                  }}
                   className="btn-secondary w-full"
                 >
                   Volver al Login

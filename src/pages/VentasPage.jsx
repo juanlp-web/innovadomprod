@@ -12,12 +12,14 @@ import {
   Clock,
   XCircle,
   TrendingUp,
-  AlertCircle
+  AlertCircle,
+  Package2
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useSales } from '@/hooks/useSales'
 import { useClients } from '@/hooks/useClients'
 import { useProducts } from '@/hooks/useProducts'
+import { useBatches } from '@/hooks/useBatches'
 
 export function VentasPage() {
   const { 
@@ -32,6 +34,7 @@ export function VentasPage() {
   
   const { clients, loading: clientsLoading } = useClients()
   const { products, loading: productsLoading } = useProducts()
+  const { getActiveBatchesByProduct, loading: batchesLoading } = useBatches()
   
   const [showForm, setShowForm] = useState(false)
   const [editingSale, setEditingSale] = useState(null)
@@ -39,6 +42,8 @@ export function VentasPage() {
   const [filterStatus, setFilterStatus] = useState('todos')
   const [selectedClient, setSelectedClient] = useState('')
   const [selectedProducts, setSelectedProducts] = useState([])
+  const [availableBatches, setAvailableBatches] = useState({}) // { productId: [batches] }
+  const [selectedBatches, setSelectedBatches] = useState({}) // { productId: batchId }
 
   const [formData, setFormData] = useState({
     client: '',
@@ -84,9 +89,24 @@ export function VentasPage() {
     }))
   }
 
-  const handleProductSelect = (productId) => {
+  const handleProductSelect = async (productId) => {
     const product = products.find(p => p._id === productId)
     if (!product) return
+
+    // Cargar lotes disponibles del producto
+    try {
+      const batches = await getActiveBatchesByProduct(productId)
+      setAvailableBatches(prev => ({
+        ...prev,
+        [productId]: batches.filter(batch => batch.currentStock > 0 && batch.status === 'activo')
+      }))
+    } catch (err) {
+      console.error('Error al cargar lotes del producto:', err)
+      setAvailableBatches(prev => ({
+        ...prev,
+        [productId]: []
+      }))
+    }
 
     const existingItem = selectedProducts.find(item => item.product === productId)
     
@@ -107,10 +127,53 @@ export function VentasPage() {
     }
   }
 
+  const handleBatchSelect = (productId, batchId) => {
+    if (!batchId) {
+      setSelectedBatches(prev => {
+        const newBatches = { ...prev }
+        delete newBatches[productId]
+        return newBatches
+      })
+      return
+    }
+
+    // Validar que la cantidad actual no exceda el stock del lote seleccionado
+    const selectedProduct = selectedProducts.find(item => item.product === productId)
+    const selectedBatch = availableBatches[productId]?.find(batch => batch._id === batchId)
+    
+    if (selectedProduct && selectedBatch && selectedProduct.quantity > selectedBatch.currentStock) {
+      alert(`La cantidad actual (${selectedProduct.quantity}) excede el stock disponible del lote #${selectedBatch.batchNumber} (${selectedBatch.currentStock} ${selectedBatch.unit}). Se ajustará la cantidad automáticamente.`)
+      
+      // Ajustar la cantidad al stock disponible
+      handleProductQuantityChange(productId, selectedBatch.currentStock)
+    }
+
+    setSelectedBatches(prev => ({
+      ...prev,
+      [productId]: batchId
+    }))
+  }
+
   const handleProductQuantityChange = (productId, newQuantity) => {
     if (newQuantity <= 0) {
       setSelectedProducts(prev => prev.filter(item => item.product !== productId))
+      // Limpiar el lote seleccionado cuando se elimina el producto
+      setSelectedBatches(prev => {
+        const newBatches = { ...prev }
+        delete newBatches[productId]
+        return newBatches
+      })
       return
+    }
+
+    // Validar que la cantidad no exceda el stock del lote seleccionado
+    const selectedBatchId = selectedBatches[productId]
+    if (selectedBatchId) {
+      const availableBatch = availableBatches[productId]?.find(batch => batch._id === selectedBatchId)
+      if (availableBatch && newQuantity > availableBatch.currentStock) {
+        alert(`La cantidad solicitada (${newQuantity}) excede el stock disponible del lote #${availableBatch.batchNumber} (${availableBatch.currentStock} ${availableBatch.unit})`)
+        return
+      }
     }
 
     setSelectedProducts(prev => prev.map(item => 
@@ -156,10 +219,25 @@ export function VentasPage() {
       return
     }
 
+    // Validar que todos los productos tengan lote seleccionado (solo si tienen lotes disponibles)
+    const productsWithoutBatch = selectedProducts.filter(item => {
+      const hasAvailableBatches = availableBatches[item.product] && availableBatches[item.product].length > 0;
+      return hasAvailableBatches && !selectedBatches[item.product];
+    });
+    
+    if (productsWithoutBatch.length > 0) {
+      const productNames = productsWithoutBatch.map(item => getProductName(item.product)).join(', ');
+      alert(`Debe seleccionar un lote para los siguientes productos: ${productNames}`)
+      return
+    }
+
     try {
       const saleData = {
         ...formData,
-        items: selectedProducts,
+        items: selectedProducts.map(item => ({
+          ...item,
+          batch: selectedBatches[item.product]
+        })),
         dueDate: formData.dueDate || null
       }
 
@@ -175,13 +253,15 @@ export function VentasPage() {
       })
       setSelectedClient('')
       setSelectedProducts([])
+      setSelectedBatches({})
+      setAvailableBatches({})
       setShowForm(false)
     } catch (err) {
       console.error('Error al crear venta:', err)
     }
   }
 
-  const handleEdit = (sale) => {
+  const handleEdit = async (sale) => {
     setEditingSale(sale)
     setFormData({
       client: sale.client._id || sale.client,
@@ -192,7 +272,45 @@ export function VentasPage() {
     })
     setSelectedClient(sale.client._id || sale.client)
     setSelectedProducts(sale.items || [])
+    
+    // Cargar lotes para los productos de la venta
+    const batchesData = {}
+    const selectedBatchesData = {}
+    
+    for (const item of sale.items || []) {
+      try {
+        const batches = await getActiveBatchesByProduct(item.product)
+        batchesData[item.product] = batches.filter(batch => batch.currentStock > 0 && batch.status === 'activo')
+        
+        // Si el item tiene un lote asignado, seleccionarlo
+        if (item.batch) {
+          selectedBatchesData[item.product] = item.batch
+        }
+      } catch (err) {
+        console.error('Error al cargar lotes del producto:', err)
+        batchesData[item.product] = []
+      }
+    }
+    
+    setAvailableBatches(batchesData)
+    setSelectedBatches(selectedBatchesData)
     setShowForm(true)
+  }
+
+  const removeProduct = (productId, index) => {
+    setSelectedProducts(prev => prev.filter((_, i) => i !== index))
+    // Limpiar el lote seleccionado cuando se elimina el producto
+    setSelectedBatches(prev => {
+      const newBatches = { ...prev }
+      delete newBatches[productId]
+      return newBatches
+    })
+    // Limpiar los lotes disponibles del producto eliminado
+    setAvailableBatches(prev => {
+      const newBatches = { ...prev }
+      delete newBatches[productId]
+      return newBatches
+    })
   }
 
   const handleDelete = async (saleId) => {
@@ -258,6 +376,16 @@ export function VentasPage() {
     return productId?.name || 'Producto no encontrado'
   }
 
+  const validateBatchesSelected = () => {
+    return selectedProducts.every(item => {
+      const hasAvailableBatches = availableBatches[item.product] && availableBatches[item.product].length > 0;
+      // Si no hay lotes disponibles, no se requiere selección
+      if (!hasAvailableBatches) return true;
+      // Si hay lotes disponibles, se debe seleccionar uno
+      return selectedBatches[item.product];
+    });
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -272,18 +400,21 @@ export function VentasPage() {
   return (
     <div className="space-y-8 animate-fade-in">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">Gestión de Ventas</h1>
-          <p className="text-gray-600">Administra las ventas y pedidos de clientes</p>
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+        <div className="flex-1">
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 mb-2">Gestión de Ventas</h1>
+          <p className="text-gray-600 text-sm sm:text-base">Administra las ventas y pedidos de clientes</p>
         </div>
-        <Button 
-          onClick={() => setShowForm(true)}
-          className="btn-primary flex items-center space-x-2 shadow-medium hover:shadow-strong transform hover:-translate-y-1 transition-all duration-300"
-        >
-          <Plus className="w-5 h-5" />
-          <span>Nueva Venta</span>
-        </Button>
+        <div className="flex-shrink-0">
+          <Button 
+            onClick={() => setShowForm(true)}
+            className="w-full lg:w-auto btn-primary flex items-center justify-center space-x-2 shadow-medium hover:shadow-strong transform hover:-translate-y-1 transition-all duration-300"
+          >
+            <Plus className="w-5 h-5" />
+            <span className="hidden sm:inline">Nueva Venta</span>
+            <span className="sm:hidden">Nueva</span>
+          </Button>
+        </div>
       </div>
 
       {/* Mostrar error si existe */}
@@ -306,8 +437,8 @@ export function VentasPage() {
       )}
 
       {/* Filtros y Búsqueda */}
-      <div className="flex flex-col sm:flex-row gap-4">
-        <div className="flex-1 relative">
+      <div className="flex flex-col gap-4">
+        <div className="relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
           <input
             type="text"
@@ -317,16 +448,18 @@ export function VentasPage() {
             className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           />
         </div>
-        <select
-          value={filterStatus}
-          onChange={(e) => setFilterStatus(e.target.value)}
-          className="px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-        >
-          <option value="todos">Todos los estados</option>
-          {statuses.map(status => (
-            <option key={status.value} value={status.value}>{status.label}</option>
-          ))}
-        </select>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          <select
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value)}
+            className="w-full px-3 sm:px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+          >
+            <option value="todos">Todos los estados</option>
+            {statuses.map(status => (
+              <option key={status.value} value={status.value}>{status.label}</option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {/* Formulario de Creación/Edición */}
@@ -417,6 +550,18 @@ export function VentasPage() {
             <div>
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Productos</h3>
               
+              {/* Mensaje de ayuda sobre lotes */}
+              <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                <p className="text-sm text-blue-700">
+                  <strong>💡 Sistema de Lotes:</strong> 
+                  {selectedProducts.some(item => availableBatches[item.product] && availableBatches[item.product].length > 0) ? (
+                    'Después de seleccionar un producto, debe elegir el lote específico del cual se venderá. Esto permite un control preciso del inventario y trazabilidad de los productos vendidos.'
+                  ) : (
+                    'Los productos seleccionados no manejan lotes, por lo que se pueden vender directamente desde el inventario general.'
+                  )}
+                </p>
+              </div>
+              
               {/* Selector de productos */}
               <div className="mb-4">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -448,11 +593,54 @@ export function VentasPage() {
                           type="button"
                           variant="ghost"
                           size="sm"
-                          onClick={() => setSelectedProducts(prev => prev.filter((_, i) => i !== index))}
+                          onClick={() => removeProduct(item.product, index)}
                           className="text-red-500 hover:text-red-700"
                         >
                           <XCircle className="w-4 h-4" />
                         </Button>
+                      </div>
+                      
+                      {/* Selector de Lotes */}
+                      <div className="bg-blue-50 rounded-lg p-3">
+                        <label className="block text-xs font-medium text-blue-700 mb-2 flex items-center">
+                          <Package2 className="w-4 h-4 mr-1" />
+                          Seleccionar Lote {availableBatches[item.product] && availableBatches[item.product].length > 0 ? '*' : '(Opcional)'}
+                        </label>
+                        {availableBatches[item.product] && availableBatches[item.product].length > 0 ? (
+                          <select
+                            value={selectedBatches[item.product] || ''}
+                            onChange={(e) => handleBatchSelect(item.product, e.target.value)}
+                            className="w-full input-field text-sm border-blue-200 focus:border-blue-500"
+                            required
+                          >
+                            <option value="">Seleccionar lote...</option>
+                            {availableBatches[item.product].map(batch => (
+                              <option key={batch._id} value={batch._id}>
+                                Lote #{batch.batchNumber} - Stock: {batch.currentStock} {batch.unit} - Vence: {new Date(batch.expirationDate).toLocaleDateString()}
+                              </option>
+                            ))}
+                          </select>
+                        ) : (
+                          <div className="text-sm text-gray-600 bg-gray-50 p-2 rounded">
+                            Este producto no maneja lotes - se puede vender directamente
+                          </div>
+                        )}
+                        {!selectedBatches[item.product] && availableBatches[item.product] && availableBatches[item.product].length > 0 && (
+                          <p className="text-xs text-orange-600 mt-1">
+                            ⚠️ Debe seleccionar un lote para continuar
+                          </p>
+                        )}
+                        {selectedBatches[item.product] && (
+                          <div className="mt-2 p-2 bg-green-50 rounded border border-green-200">
+                            <p className="text-xs text-green-700">
+                              ✅ Lote seleccionado: Stock disponible: {
+                                availableBatches[item.product]?.find(batch => batch._id === selectedBatches[item.product])?.currentStock || 0
+                              } {
+                                availableBatches[item.product]?.find(batch => batch._id === selectedBatches[item.product])?.unit || ''
+                              }
+                            </p>
+                          </div>
+                        )}
                       </div>
                       
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -540,6 +728,47 @@ export function VentasPage() {
               />
             </div>
 
+            {/* Indicador de Progreso de Lotes */}
+            {selectedProducts.length > 0 && (
+              <div className="bg-gray-50 rounded-lg p-4">
+                <h4 className="font-medium text-gray-900 mb-3 flex items-center">
+                  <Package2 className="w-4 h-4 mr-2" />
+                  Estado de Selección de Lotes
+                </h4>
+                <div className="space-y-2">
+                  {selectedProducts.map((item, index) => {
+                    const hasBatch = selectedBatches[item.product]
+                    const availableBatchesForProduct = availableBatches[item.product] || []
+                    return (
+                      <div key={index} className="flex items-center justify-between">
+                        <span className="text-sm text-gray-700">
+                          {getProductName(item.product)}
+                        </span>
+                        <div className="flex items-center space-x-2">
+                          {hasBatch ? (
+                            <span className="text-green-600 text-sm flex items-center">
+                              <CheckCircle className="w-4 h-4 mr-1" />
+                              Lote seleccionado
+                            </span>
+                          ) : availableBatchesForProduct.length > 0 ? (
+                            <span className="text-orange-600 text-sm flex items-center">
+                              <AlertCircle className="w-4 h-4 mr-1" />
+                              Pendiente
+                            </span>
+                          ) : (
+                            <span className="text-blue-600 text-sm flex items-center">
+                              <CheckCircle className="w-4 h-4 mr-1" />
+                              Sin lotes - Listo para vender
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+
             {/* Botones */}
             <div className="flex justify-end space-x-3">
               <Button
@@ -557,6 +786,8 @@ export function VentasPage() {
                   })
                   setSelectedClient('')
                   setSelectedProducts([])
+                  setSelectedBatches({})
+                  setAvailableBatches({})
                 }}
                 className="btn-secondary"
               >
@@ -565,7 +796,7 @@ export function VentasPage() {
               <Button 
                 type="submit" 
                 className="btn-primary shadow-medium hover:shadow-strong transform hover:-translate-y-1 transition-all duration-300"
-                disabled={!selectedClient || selectedProducts.length === 0}
+                disabled={!selectedClient || selectedProducts.length === 0 || !validateBatchesSelected()}
               >
                 {editingSale ? 'Actualizar Venta' : 'Crear Venta'}
               </Button>
@@ -576,131 +807,233 @@ export function VentasPage() {
 
       {/* Lista de Ventas */}
       <div className="card card-hover">
-        <div className="p-6 border-b border-gray-100">
+        <div className="p-4 sm:p-6 border-b border-gray-100">
           <h3 className="text-lg font-semibold text-gray-900">
             Ventas ({filteredSales.length})
           </h3>
         </div>
         
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="table-header">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Venta
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Cliente
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Productos
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Total
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Estado
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Fechas
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Acciones
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+        <>
+          {/* Vista de tarjetas para móviles */}
+          <div className="lg:hidden p-4 sm:p-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {filteredSales.map((sale) => {
                 const statusInfo = getStatusInfo(sale.paymentStatus)
                 const StatusIcon = getStatusIcon(sale.paymentStatus)
                 
                 return (
-                  <tr key={sale._id} className="hover:bg-gray-50 transition-colors duration-200">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div>
-                        <div className="text-sm font-medium text-gray-900">{sale.invoiceNumber}</div>
-                        <div className="text-xs text-gray-500">
-                          {paymentMethods.find(m => m.value === sale.paymentMethod)?.label || sale.paymentMethod} • {sale.items?.length || 0} productos
-                        </div>
+                  <div key={sale._id} className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+                    {/* Header de la tarjeta */}
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex-1">
+                        <h4 className="font-semibold text-gray-900 text-sm">{sale.invoiceNumber}</h4>
+                        <p className="text-xs text-gray-600">
+                          {paymentMethods.find(m => m.value === sale.paymentMethod)?.label || sale.paymentMethod}
+                        </p>
                       </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div>
-                        <div className="text-sm font-medium text-gray-900">{getClientName(sale.client)}</div>
-                        <div className="text-xs text-gray-500">
-                          {sale.client?.email || 'Email no disponible'}
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="space-y-1">
-                        {sale.items?.map((item, index) => (
-                          <div key={index} className="text-xs text-gray-600">
-                            {item.quantity}x {getProductName(item.product)}
-                          </div>
-                        ))}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-right">
-                        <div className="text-sm font-medium text-gray-900">
-                          {formatCurrency(sale.total)}
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          Subtotal: {formatCurrency(sale.subtotal)}
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          IVA: {formatCurrency(sale.tax)}
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center space-x-2">
                         <StatusIcon className={`w-4 h-4 ${statusInfo?.color}`} />
-                        <span className={`text-sm font-medium ${statusInfo?.color}`}>
+                        <span className={`text-xs font-medium ${statusInfo?.color}`}>
                           {statusInfo?.label}
                         </span>
                       </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-xs text-gray-600">
-                        <div>Venta: {new Date(sale.saleDate).toLocaleDateString('es-DO')}</div>
-                        <div>Vencimiento: {sale.dueDate ? new Date(sale.dueDate).toLocaleDateString('es-DO') : 'No definida'}</div>
+                    </div>
+                    
+                    {/* Cliente */}
+                    <div className="mb-3">
+                      <p className="text-sm font-medium text-gray-900">{getClientName(sale.client)}</p>
+                      <p className="text-xs text-gray-600">
+                        {sale.client?.email || 'Email no disponible'}
+                      </p>
+                    </div>
+                    
+                    {/* Productos */}
+                    <div className="mb-3">
+                      <p className="text-xs text-gray-600 mb-1">
+                        Productos ({sale.items?.length || 0}):
+                      </p>
+                      <div className="space-y-1">
+                        {sale.items?.slice(0, 3).map((item, index) => (
+                          <div key={index} className="text-xs text-gray-600">
+                            {item.quantity}x {getProductName(item.product)}
+                            {item.batch && (
+                              <span className="text-blue-600 ml-1">
+                                (Lote #{item.batch.batchNumber || item.batch})
+                              </span>
+                            )}
+                          </div>
+                        ))}
+                        {sale.items?.length > 3 && (
+                          <p className="text-xs text-gray-500">
+                            +{sale.items.length - 3} productos más...
+                          </p>
+                        )}
                       </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      <div className="flex items-center space-x-2">
-                        <select
-                          value={sale.paymentStatus}
-                          onChange={(e) => handleStatusChange(sale._id, e.target.value)}
-                          className="text-xs border border-gray-300 rounded px-2 py-1"
-                        >
-                          {statuses.map(status => (
-                            <option key={status.value} value={status.value}>{status.label}</option>
-                          ))}
-                        </select>
-                        <button
-                          onClick={() => handleEdit(sale)}
-                          className="text-blue-600 hover:text-blue-900 transition-colors duration-200"
-                          title="Editar"
-                        >
-                          <Edit className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(sale._id)}
-                          className="text-red-600 hover:text-red-900 transition-colors duration-200"
-                          title="Eliminar"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
+                    </div>
+                    
+                    {/* Totales */}
+                    <div className="mb-4">
+                      <p className="text-sm font-medium text-gray-900">
+                        Total: {formatCurrency(sale.total)}
+                      </p>
+                      <p className="text-xs text-gray-600">
+                        Subtotal: {formatCurrency(sale.subtotal)} • IVA: {formatCurrency(sale.tax)}
+                      </p>
+                    </div>
+                    
+                    {/* Acciones */}
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleEdit(sale)}
+                        className="flex-1 text-xs p-2"
+                      >
+                        <Edit className="w-3 h-3 mr-1" />
+                        Editar
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleDelete(sale._id)}
+                        className="flex-1 text-xs p-2 text-red-600 hover:text-red-800"
+                      >
+                        <Trash2 className="w-3 h-3 mr-1" />
+                        Eliminar
+                      </Button>
+                    </div>
+                  </div>
                 )
               })}
-            </tbody>
-          </table>
-        </div>
+            </div>
+          </div>
+          
+          {/* Vista de tabla para desktop */}
+          <div className="hidden lg:block overflow-x-auto">
+            <table className="w-full">
+              <thead className="table-header">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Venta
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Cliente
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Productos
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Total
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Estado
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Fechas
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Acciones
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {filteredSales.map((sale) => {
+                  const statusInfo = getStatusInfo(sale.paymentStatus)
+                  const StatusIcon = getStatusIcon(sale.paymentStatus)
+                  
+                  return (
+                    <tr key={sale._id} className="hover:bg-gray-50 transition-colors duration-200">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div>
+                          <div className="text-sm font-medium text-gray-900">{sale.invoiceNumber}</div>
+                          <div className="text-xs text-gray-500">
+                            {paymentMethods.find(m => m.value === sale.paymentMethod)?.label || sale.paymentMethod} • {sale.items?.length || 0} productos
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div>
+                          <div className="text-sm font-medium text-gray-900">{getClientName(sale.client)}</div>
+                          <div className="text-xs text-gray-500">
+                            {sale.client?.email || 'Email no disponible'}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="space-y-1">
+                          {sale.items?.map((item, index) => (
+                            <div key={index} className="text-xs text-gray-600">
+                              {item.quantity}x {getProductName(item.product)}
+                              {item.batch && (
+                                <span className="text-blue-600 ml-1">
+                                  (Lote #{item.batch.batchNumber || item.batch})
+                                </span>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-right">
+                          <div className="text-sm font-medium text-gray-900">
+                            {formatCurrency(sale.total)}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            Subtotal: {formatCurrency(sale.subtotal)}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            IVA: {formatCurrency(sale.tax)}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center space-x-2">
+                          <StatusIcon className={`w-4 h-4 ${statusInfo?.color}`} />
+                          <span className={`text-sm font-medium ${statusInfo?.color}`}>
+                            {statusInfo?.label}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-xs text-gray-600">
+                          <div>Venta: {new Date(sale.saleDate).toLocaleDateString('es-DO')}</div>
+                          <div>Vencimiento: {sale.dueDate ? new Date(sale.dueDate).toLocaleDateString('es-DO') : 'No definida'}</div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        <div className="flex items-center space-x-2">
+                          <select
+                            value={sale.paymentStatus}
+                            onChange={(e) => handleStatusChange(sale._id, e.target.value)}
+                            className="text-xs border border-gray-300 rounded px-2 py-1"
+                          >
+                            {statuses.map(status => (
+                              <option key={status.value} value={status.value}>{status.label}</option>
+                            ))}
+                          </select>
+                          <button
+                            onClick={() => handleEdit(sale)}
+                            className="text-blue-600 hover:text-blue-900 transition-colors duration-200"
+                            title="Editar"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(sale._id)}
+                            className="text-red-600 hover:text-red-900 transition-colors duration-200"
+                            title="Eliminar"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        </>
 
         {filteredSales.length === 0 && (
           <div className="text-center py-12">
