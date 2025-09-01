@@ -84,15 +84,14 @@ export function Login() {
   }
 
   return (
-    <div className="min-h-screen gradient-primary flex items-center justify-center p-4">
+    <div className="min-h-screen bg-white flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         {/* Logo y Título */}
         <div className="text-center mb-8 animate-fade-in">
-          <div className="w-20 h-20 bg-gradient-to-br from-blue-600 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-strong">
-            <BarChart3 className="w-10 h-10 text-white" />
-          </div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Bienvenido a Innovadom</h1>
-          <p className="text-gray-600">Sistema de gestión para productos de belleza</p>
+          <img
+            src="/ProductOneX.png"
+            alt="ProductOneX"
+          />
         </div>
 
         {/* Formulario de Login */}
@@ -188,7 +187,7 @@ export function Login() {
         {/* Footer */}
         <div className="text-center mt-8 animate-fade-in">
           <p className="text-gray-500 text-sm">
-            © 2024 Innovadom. Todos los derechos reservados.
+            © 2025 ProductOneX. Todos los derechos reservados.
           </p>
         </div>
       </div>

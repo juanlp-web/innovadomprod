@@ -62,11 +62,13 @@ export function Sidebar({ onCollapseChange, isCollapsed }) {
         <div className="flex items-center justify-between">
           {!isCollapsed && (
             <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl flex items-center justify-center shadow-medium">
-                <BarChart3 className="w-6 h-6 text-white" />
-              </div>
+              <img
+                src="/ProductOneXIco.png"
+                alt="ProductOneX"
+                className="w-12 h-12 rounded-xl object-contain bg-white p-1 shadow-medium border border-gray-200"
+              />
               <div>
-                <h1 className="text-xl font-bold text-gray-900">Innovadom</h1>
+                <h1 className="text-xl font-bold text-gray-900">ProductOneX</h1>
                 <p className="text-xs text-gray-500">Sistema de Gestión</p>
               </div>
             </div>
