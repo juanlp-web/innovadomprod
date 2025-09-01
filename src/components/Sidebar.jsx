@@ -13,7 +13,8 @@ import {
   Factory,
   User,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  BookOpen
 } from 'lucide-react'
 
 export function Sidebar({ onCollapseChange, isCollapsed }) {
@@ -22,13 +23,14 @@ export function Sidebar({ onCollapseChange, isCollapsed }) {
 
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: BarChart3, description: 'Vista general del negocio', path: '/dashboard' },
-    { id: 'productos', label: 'Productos', icon: Package, description: 'Catálogo de productos', path: '/productos' },
-    { id: 'inventario', label: 'Inventario', icon: Box, description: 'Control de stock', path: '/inventario' },
+    { id: 'recetas', label: 'Recetas', icon: BookOpen, description: 'Gestión de recetas de producción', path: '/recetas' },
     { id: 'ventas', label: 'Ventas', icon: DollarSign, description: 'Registro de ventas', path: '/ventas' },
     { id: 'compras', label: 'Compras', icon: ShoppingCart, description: 'Gestión de compras', path: '/compras' },
+    { id: 'productos', label: 'Productos', icon: Package, description: 'Catálogo de productos', path: '/productos' },
+    { id: 'inventario', label: 'Inventario', icon: Box, description: 'Control de stock', path: '/inventario' },
+    { id: 'lotes', label: 'Lotes', icon: Package2, description: 'Gestión de lotes de producción', path: '/lotes' },
     { id: 'clientes', label: 'Clientes', icon: Users, description: 'Base de clientes', path: '/clientes' },
     { id: 'proveedores', label: 'Proveedores', icon: Factory, description: 'Gestión de proveedores', path: '/proveedores' },
-    { id: 'lotes', label: 'Lotes', icon: Package2, description: 'Gestión de lotes de producción', path: '/lotes' },
     { id: 'perfil', label: 'Perfil', icon: User, description: 'Configuración personal', path: '/perfil' }
   ]
 
