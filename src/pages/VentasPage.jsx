@@ -20,6 +20,8 @@ import { useSales } from '@/hooks/useSales'
 import { useClients } from '@/hooks/useClients'
 import { useProducts } from '@/hooks/useProducts'
 import { useBatches } from '@/hooks/useBatches'
+import { usePackages } from '@/hooks/usePackages'
+import { useConfig } from '@/hooks/useConfig'
 
 export function VentasPage() {
   const { 
@@ -35,6 +37,8 @@ export function VentasPage() {
   const { clients, loading: clientsLoading } = useClients()
   const { products, loading: productsLoading } = useProducts()
   const { getActiveBatchesByProduct, loading: batchesLoading } = useBatches()
+  const { availablePackages, fetchAvailablePackages, loading: packagesLoading } = useSales()
+  const { getConfig } = useConfig()
   
   const [showForm, setShowForm] = useState(false)
   const [editingSale, setEditingSale] = useState(null)
@@ -43,7 +47,18 @@ export function VentasPage() {
   const [selectedClient, setSelectedClient] = useState('')
   const [selectedProducts, setSelectedProducts] = useState([])
   const [availableBatches, setAvailableBatches] = useState({}) // { productId: [batches] }
-  const [selectedBatches, setSelectedBatches] = useState({}) // { productId: batchId }
+  const [selectedBatches, setSelectedBatches] = useState({}) // { productId: [{ batchId, quantity }] }
+  const [saleMode, setSaleMode] = useState('products') // 'products' o 'packages'
+
+  // Debug useEffect para lotes
+  useEffect(() => {
+    console.log('=== ESTADO ACTUALIZADO ===')
+    console.log('selectedBatches:', selectedBatches)
+    console.log('availableBatches:', availableBatches)
+    console.log('selectedProducts:', selectedProducts)
+    console.log('editingSale:', editingSale)
+    console.log('=== FIN ESTADO ACTUALIZADO ===')
+  }, [selectedBatches, availableBatches, selectedProducts, editingSale])
 
   const [formData, setFormData] = useState({
     client: '',
@@ -72,6 +87,15 @@ export function VentasPage() {
     return () => clearError()
   }, [clearError])
 
+  // Cargar paquetes disponibles cuando se cambie al modo de paquetes
+  useEffect(() => {
+    console.log('useEffect packages - saleMode:', saleMode, 'availablePackages:', availablePackages)
+    if (saleMode === 'packages' && (!availablePackages || availablePackages.length === 0)) {
+      console.log('Cargando paquetes disponibles...')
+      fetchAvailablePackages()
+    }
+  }, [saleMode, availablePackages, fetchAvailablePackages])
+
   const handleInputChange = (e) => {
     const { name, value } = e.target
     setFormData(prev => ({
@@ -83,10 +107,64 @@ export function VentasPage() {
   const handleClientChange = (e) => {
     const clientId = e.target.value
     setSelectedClient(clientId)
+    
+    // Calcular fecha de vencimiento basada en los días de término de pago del cliente
+    const selectedClient = clients.find(c => c._id === clientId)
+    let dueDate = ''
+    
+    if (selectedClient && selectedClient.paymentTerms) {
+      // Usar solo la fecha actual (sin hora) para evitar problemas de zona horaria
+      const today = new Date()
+      const todayDateOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate())
+      const dueDateObj = new Date(todayDateOnly)
+      dueDateObj.setDate(todayDateOnly.getDate() + selectedClient.paymentTerms)
+      dueDate = dueDateObj.toISOString().split('T')[0]
+    }
+    
     setFormData(prev => ({
       ...prev,
-      client: clientId
+      client: clientId,
+      dueDate: dueDate
     }))
+  }
+
+  const loadBatchesForProduct = async (productId) => {
+    // Validar que el productId sea válido antes de hacer la llamada
+    if (!productId || productId === 'undefined' || productId === '[object Object]' || typeof productId !== 'string') {
+      console.error('=== PRODUCTID INVÁLIDO - OMITIENDO CARGA DE LOTES ===')
+      console.error('ProductId inválido:', productId, 'Tipo:', typeof productId)
+      return
+    }
+
+    try {
+      console.log('=== INICIANDO CARGA DE LOTES ===')
+      console.log('ProductId:', productId, 'Tipo:', typeof productId)
+      console.log('Función getActiveBatchesByProduct:', typeof getActiveBatchesByProduct)
+      
+      const batches = await getActiveBatchesByProduct(productId)
+      console.log('Lotes obtenidos del backend:', batches)
+      
+      const activeBatches = batches.filter(batch => batch.currentStock > 0 && batch.status === 'activo')
+      console.log('Lotes activos filtrados:', activeBatches)
+      
+      setAvailableBatches(prev => {
+        const newBatches = {
+          ...prev,
+          [productId]: activeBatches
+        }
+        console.log('AvailableBatches actualizado:', newBatches)
+        console.log('=== FIN CARGA DE LOTES ===')
+        return newBatches
+      })
+    } catch (err) {
+      console.error('=== ERROR AL CARGAR LOTES ===')
+      console.error('Error completo:', err)
+      console.error('ProductId que causó el error:', productId)
+      setAvailableBatches(prev => ({
+        ...prev,
+        [productId]: []
+      }))
+    }
   }
 
   const handleProductSelect = async (productId) => {
@@ -94,19 +172,7 @@ export function VentasPage() {
     if (!product) return
 
     // Cargar lotes disponibles del producto
-    try {
-      const batches = await getActiveBatchesByProduct(productId)
-      setAvailableBatches(prev => ({
-        ...prev,
-        [productId]: batches.filter(batch => batch.currentStock > 0 && batch.status === 'activo')
-      }))
-    } catch (err) {
-      console.error('Error al cargar lotes del producto:', err)
-      setAvailableBatches(prev => ({
-        ...prev,
-        [productId]: []
-      }))
-    }
+    await loadBatchesForProduct(productId)
 
     const existingItem = selectedProducts.find(item => item.product === productId)
     
@@ -127,6 +193,69 @@ export function VentasPage() {
     }
   }
 
+  // Función para agregar un lote a un producto
+  const handleBatchAdd = (productId, batchId, quantity = 1) => {
+    setSelectedBatches(prev => {
+      const currentBatches = prev[productId] || []
+      const existingBatch = currentBatches.find(batch => batch.batchId === batchId)
+      
+      if (existingBatch) {
+        // Si el lote ya existe, actualizar la cantidad
+        return {
+          ...prev,
+          [productId]: currentBatches.map(batch => 
+            batch.batchId === batchId 
+              ? { ...batch, quantity: batch.quantity + quantity }
+              : batch
+          )
+        }
+      } else {
+        // Si es un lote nuevo, agregarlo
+        return {
+          ...prev,
+          [productId]: [...currentBatches, { batchId, quantity }]
+        }
+      }
+    })
+  }
+
+  // Función para actualizar la cantidad de un lote específico
+  const handleBatchQuantityChange = (productId, batchId, newQuantity) => {
+    if (newQuantity <= 0) {
+      handleBatchRemove(productId, batchId)
+      return
+    }
+
+    setSelectedBatches(prev => ({
+      ...prev,
+      [productId]: (prev[productId] || []).map(batch => 
+        batch.batchId === batchId 
+          ? { ...batch, quantity: newQuantity }
+          : batch
+      )
+    }))
+  }
+
+  // Función para remover un lote de un producto
+  const handleBatchRemove = (productId, batchId) => {
+    setSelectedBatches(prev => ({
+      ...prev,
+      [productId]: (prev[productId] || []).filter(batch => batch.batchId !== batchId)
+    }))
+  }
+
+  // Función para obtener la cantidad total de lotes seleccionados para un producto
+  const getTotalBatchQuantity = (productId) => {
+    const batches = selectedBatches[productId] || []
+    return batches.reduce((total, batch) => total + batch.quantity, 0)
+  }
+
+  // Función para verificar si un producto tiene lotes suficientes
+  const hasEnoughBatchStock = (productId, requiredQuantity) => {
+    return getTotalBatchQuantity(productId) >= requiredQuantity
+  }
+
+  // Función legacy para compatibilidad (mantener por ahora)
   const handleBatchSelect = (productId, batchId) => {
     if (!batchId) {
       setSelectedBatches(prev => {
@@ -137,21 +266,16 @@ export function VentasPage() {
       return
     }
 
-    // Validar que la cantidad actual no exceda el stock del lote seleccionado
-    const selectedProduct = selectedProducts.find(item => item.product === productId)
-    const selectedBatch = availableBatches[productId]?.find(batch => batch._id === batchId)
-    
-    if (selectedProduct && selectedBatch && selectedProduct.quantity > selectedBatch.currentStock) {
-      alert(`La cantidad actual (${selectedProduct.quantity}) excede el stock disponible del lote #${selectedBatch.batchNumber} (${selectedBatch.currentStock} ${selectedBatch.unit}). Se ajustará la cantidad automáticamente.`)
-      
-      // Ajustar la cantidad al stock disponible
-      handleProductQuantityChange(productId, selectedBatch.currentStock)
+    // Si ya hay lotes seleccionados, agregar este como uno más
+    if (selectedBatches[productId] && selectedBatches[productId].length > 0) {
+      handleBatchAdd(productId, batchId, 1)
+    } else {
+      // Si no hay lotes, crear el primer lote
+      setSelectedBatches(prev => ({
+        ...prev,
+        [productId]: [{ batchId, quantity: 1 }]
+      }))
     }
-
-    setSelectedBatches(prev => ({
-      ...prev,
-      [productId]: batchId
-    }))
   }
 
   const handleProductQuantityChange = (productId, newQuantity) => {
@@ -201,9 +325,121 @@ export function VentasPage() {
 
   const calculateTotals = () => {
     const subtotal = selectedProducts.reduce((sum, item) => sum + item.total, 0)
-    const tax = subtotal * 0.16 // 16% IVA
+    const ivaPercentage = getConfig('iva_percentage', 0) / 100 // Obtener IVA de configuración, default 16%
+    const tax = subtotal * ivaPercentage
     const total = subtotal + tax
-    return { subtotal, tax, total }
+    return { subtotal, tax, total, ivaPercentage: ivaPercentage * 100 }
+  }
+
+  // Función para manejar la selección de paquetes
+  const handlePackageSelect = (packageId) => {
+    const packageItem = availablePackages.find(pkg => pkg._id === packageId)
+    if (!packageItem) return
+
+    // Agregar los productos del paquete a la lista de productos seleccionados
+    // para que el usuario pueda seleccionar lotes
+    console.log('=== ANÁLISIS DE PAQUETE ===')
+    console.log('PackageItem completo:', packageItem)
+    console.log('PackageItem items:', packageItem.items)
+    console.log('Cantidad de items:', packageItem.items?.length)
+    
+    const packageProducts = packageItem.items
+      .filter(item => {
+        console.log('Filtrando item:', item)
+        console.log('Item.product:', item.product)
+        console.log('Item.product._id:', item.product?._id)
+        return item.product && item.product._id
+      })
+      .map(item => {
+        console.log('Mapeando item:', item)
+        console.log('Item product:', item.product, 'Type:', typeof item.product)
+        const productId = typeof item.product === 'object' ? item.product._id : item.product
+        console.log('ProductId extraído:', productId, 'Tipo:', typeof productId)
+        
+        // Validar que el productId sea válido
+        if (!productId || productId === 'undefined' || productId === '[object Object]') {
+          console.error('ProductId inválido:', productId)
+          return null
+        }
+        
+        const packageProduct = {
+          product: productId,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          total: item.unitPrice * item.quantity,
+          discount: 0,
+          isFromPackage: true,
+          packageId: packageId,
+          packageName: packageItem.name
+        }
+        
+        console.log('PackageProduct creado:', packageProduct)
+        return packageProduct
+      })
+      .filter(item => item !== null) // Filtrar items nulos
+    
+    console.log('PackageProducts finales:', packageProducts)
+    console.log('=== FIN ANÁLISIS DE PAQUETE ===')
+
+    // Agregar cada producto del paquete a la lista
+    setSelectedProducts(prev => {
+      const newProducts = [...prev]
+      packageProducts.forEach(packageProduct => {
+        // Verificar si el producto ya existe
+        const existingIndex = newProducts.findIndex(item => 
+          item.product === packageProduct.product && item.isFromPackage
+        )
+        
+        if (existingIndex >= 0) {
+          // Si existe, aumentar la cantidad
+          newProducts[existingIndex] = {
+            ...newProducts[existingIndex],
+            quantity: newProducts[existingIndex].quantity + packageProduct.quantity,
+            total: (newProducts[existingIndex].quantity + packageProduct.quantity) * packageProduct.unitPrice
+          }
+        } else {
+          // Si no existe, agregarlo
+          newProducts.push(packageProduct)
+        }
+      })
+      return newProducts
+    })
+
+    // Cargar lotes para los productos del paquete
+    console.log('Cargando lotes para productos del paquete:', packageProducts)
+    packageProducts.forEach(packageProduct => {
+      console.log('Cargando lotes para producto del paquete:', packageProduct.product, 'Tipo:', typeof packageProduct.product)
+      
+      // Validación adicional antes de cargar lotes
+      if (packageProduct.product && 
+          typeof packageProduct.product === 'string' && 
+          packageProduct.product !== 'undefined' && 
+          packageProduct.product !== '[object Object]' &&
+          packageProduct.product.length === 24) {
+        loadBatchesForProduct(packageProduct.product)
+      } else {
+        console.error('=== OMITIENDO CARGA DE LOTES - PRODUCTID INVÁLIDO ===')
+        console.error('ProductId inválido:', packageProduct.product, 'Tipo:', typeof packageProduct.product)
+      }
+    })
+  }
+
+  // Función para manejar cambios en la cantidad de paquetes
+  const handlePackageQuantityChange = (packageId, newQuantity) => {
+    setSelectedProducts(prev => prev.map(item => 
+      item.package === packageId 
+        ? { ...item, quantity: newQuantity, total: (item.unitPrice - item.discount) * newQuantity }
+        : item
+    ))
+  }
+
+  // Función para manejar descuentos en paquetes
+  const handlePackageDiscountChange = (packageId, newDiscount) => {
+    setSelectedProducts(prev => prev.map(item => 
+      item.package === packageId 
+        ? { ...item, discount: newDiscount, total: (item.unitPrice - newDiscount) * item.quantity }
+        : item
+    ))
   }
 
   const handleSubmit = async (e) => {
@@ -219,25 +455,62 @@ export function VentasPage() {
       return
     }
 
-    // Validar que todos los productos tengan lote seleccionado (solo si tienen lotes disponibles)
-    const productsWithoutBatch = selectedProducts.filter(item => {
+    // Validar que todos los productos tengan lotes suficientes (solo si tienen lotes disponibles)
+    const productsWithoutEnoughBatches = selectedProducts.filter(item => {
       const hasAvailableBatches = availableBatches[item.product] && availableBatches[item.product].length > 0;
-      return hasAvailableBatches && !selectedBatches[item.product];
+      if (!hasAvailableBatches) return false; // No requiere lotes
+      
+      const totalBatchQuantity = getTotalBatchQuantity(item.product);
+      return totalBatchQuantity < item.quantity;
     });
     
-    if (productsWithoutBatch.length > 0) {
-      const productNames = productsWithoutBatch.map(item => getProductName(item.product)).join(', ');
-      alert(`Debe seleccionar un lote para los siguientes productos: ${productNames}`)
+    if (productsWithoutEnoughBatches.length > 0) {
+      const productNames = productsWithoutEnoughBatches.map(item => {
+        const totalBatchQuantity = getTotalBatchQuantity(item.product);
+        return `${getProductName(item.product)} (necesita: ${item.quantity}, tiene: ${totalBatchQuantity})`;
+      }).join(', ');
+      alert(`Los siguientes productos no tienen lotes suficientes: ${productNames}`)
       return
     }
 
     try {
       const saleData = {
         ...formData,
-        items: selectedProducts.map(item => ({
-          ...item,
-          batch: selectedBatches[item.product]
-        })),
+        items: selectedProducts.flatMap(item => {
+          const productBatches = selectedBatches[item.product] || [];
+          
+          // Si no hay lotes seleccionados, enviar el producto tal como está
+          if (productBatches.length === 0) {
+            return [{
+              product: item.product,
+              quantity: item.quantity,
+              unitPrice: item.unitPrice,
+              total: item.total,
+              discount: item.discount,
+              batch: null,
+              isPackage: item.isPackage || false,
+              package: item.package || null,
+              isFromPackage: item.isFromPackage || false,
+              packageId: item.packageId || null,
+              packageName: item.packageName || null
+            }];
+          }
+          
+          // Si hay lotes seleccionados, crear un item por cada lote
+          return productBatches.map(batchItem => ({
+            product: item.product,
+            quantity: batchItem.quantity,
+            unitPrice: item.unitPrice,
+            total: (item.unitPrice - (item.discount || 0)) * batchItem.quantity,
+            discount: item.discount || 0,
+            batch: batchItem.batchId,
+            isPackage: item.isPackage || false,
+            package: item.package || null,
+            isFromPackage: item.isFromPackage || false,
+            packageId: item.packageId || null,
+            packageName: item.packageName || null
+          }));
+        }),
         dueDate: formData.dueDate || null
       }
 
@@ -262,6 +535,7 @@ export function VentasPage() {
   }
 
   const handleEdit = async (sale) => {
+    console.log('Editando venta:', sale)
     setEditingSale(sale)
     setFormData({
       client: sale.client._id || sale.client,
@@ -271,46 +545,104 @@ export function VentasPage() {
       dueDate: sale.dueDate ? new Date(sale.dueDate).toISOString().split('T')[0] : ''
     })
     setSelectedClient(sale.client._id || sale.client)
-    setSelectedProducts(sale.items || [])
     
-    // Cargar lotes para los productos de la venta
+    // Determinar si es una venta de paquetes o productos individuales
+    const hasPackageItems = sale.items?.some(item => item.isPackage || item.isFromPackage)
+    setSaleMode(hasPackageItems ? 'packages' : 'products')
+    
+    // Procesar items para la nueva estructura
+    const processedItems = []
     const batchesData = {}
     const selectedBatchesData = {}
     
+    // Agrupar items por producto para manejar múltiples lotes
+    const itemsByProduct = {}
+    
     for (const item of sale.items || []) {
-      try {
-        const batches = await getActiveBatchesByProduct(item.product)
-        batchesData[item.product] = batches.filter(batch => batch.currentStock > 0 && batch.status === 'activo')
-        
-        // Si el item tiene un lote asignado, seleccionarlo
-        if (item.batch) {
-          selectedBatchesData[item.product] = item.batch
+      if (!itemsByProduct[item.product]) {
+        itemsByProduct[item.product] = {
+          product: item.product,
+          quantity: 0,
+          unitPrice: item.unitPrice,
+          total: 0,
+          discount: item.discount || 0,
+          isPackage: item.isPackage || false,
+          package: item.package || null,
+          isFromPackage: item.isFromPackage || false,
+          packageId: item.packageId || null,
+          packageName: item.packageName || null,
+          batches: []
         }
-      } catch (err) {
-        console.error('Error al cargar lotes del producto:', err)
-        batchesData[item.product] = []
+      }
+      
+      // Acumular cantidad y total
+      itemsByProduct[item.product].quantity += item.quantity
+      itemsByProduct[item.product].total += item.total
+      
+      // Agregar lote si existe
+      if (item.batch) {
+        itemsByProduct[item.product].batches.push({
+          batchId: item.batch,
+          quantity: item.quantity
+        })
       }
     }
     
+    // Convertir a array y cargar lotes
+    for (const [productId, itemData] of Object.entries(itemsByProduct)) {
+      processedItems.push(itemData)
+      
+      try {
+        const batches = await getActiveBatchesByProduct(productId)
+        batchesData[productId] = batches.filter(batch => batch.currentStock > 0 && batch.status === 'activo')
+        
+        // Configurar lotes seleccionados
+        if (itemData.batches.length > 0) {
+          selectedBatchesData[productId] = itemData.batches
+        }
+      } catch (err) {
+        console.error('Error al cargar lotes del producto:', err)
+        batchesData[productId] = []
+      }
+    }
+    
+    setSelectedProducts(processedItems)
     setAvailableBatches(batchesData)
     setSelectedBatches(selectedBatchesData)
     setShowForm(true)
+    
+    console.log('Datos precargados:', {
+      processedItems,
+      batchesData,
+      selectedBatchesData,
+      saleMode: hasPackageItems ? 'packages' : 'products'
+    })
+    
+    // Debug adicional para lotes
+    console.log('=== DEBUG LOTES ===')
+    console.log('selectedBatches después de setSelectedBatches:', selectedBatchesData)
+    console.log('availableBatches después de setAvailableBatches:', batchesData)
+    console.log('=== FIN DEBUG LOTES ===')
   }
 
-  const removeProduct = (productId, index) => {
+  const removeProduct = (itemId, index) => {
+    const item = selectedProducts[index]
     setSelectedProducts(prev => prev.filter((_, i) => i !== index))
-    // Limpiar el lote seleccionado cuando se elimina el producto
-    setSelectedBatches(prev => {
-      const newBatches = { ...prev }
-      delete newBatches[productId]
-      return newBatches
-    })
-    // Limpiar los lotes disponibles del producto eliminado
-    setAvailableBatches(prev => {
-      const newBatches = { ...prev }
-      delete newBatches[productId]
-      return newBatches
-    })
+    
+    // Limpiar el lote seleccionado cuando se elimina el producto (solo para productos, no paquetes)
+    if (item && !item.isPackage && item.product) {
+      setSelectedBatches(prev => {
+        const newBatches = { ...prev }
+        delete newBatches[item.product]
+        return newBatches
+      })
+      // Limpiar los lotes disponibles del producto eliminado
+      setAvailableBatches(prev => {
+        const newBatches = { ...prev }
+        delete newBatches[item.product]
+        return newBatches
+      })
+    }
   }
 
   const handleDelete = async (saleId) => {
@@ -376,13 +708,32 @@ export function VentasPage() {
     return productId?.name || 'Producto no encontrado'
   }
 
+  const getPackageName = (packageId) => {
+    if (typeof packageId === 'string') {
+      const packageItem = availablePackages.find(p => p._id === packageId)
+      return packageItem ? packageItem.name : 'Paquete no encontrado'
+    }
+    return packageId?.name || 'Paquete no encontrado'
+  }
+
+  const getItemName = (item) => {
+    if (item.isPackage && item.package) {
+      return getPackageName(item.package)
+    }
+    if (item.isFromPackage) {
+      return `${getProductName(item.product)} (de ${item.packageName})`
+    }
+    return getProductName(item.product)
+  }
+
   const validateBatchesSelected = () => {
     return selectedProducts.every(item => {
       const hasAvailableBatches = availableBatches[item.product] && availableBatches[item.product].length > 0;
       // Si no hay lotes disponibles, no se requiere selección
       if (!hasAvailableBatches) return true;
-      // Si hay lotes disponibles, se debe seleccionar uno
-      return selectedBatches[item.product];
+      // Si hay lotes disponibles, verificar que la cantidad total sea suficiente
+      const totalBatchQuantity = getTotalBatchQuantity(item.product);
+      return totalBatchQuantity >= item.quantity;
     });
   };
 
@@ -506,7 +857,7 @@ export function VentasPage() {
                   <option value="">Seleccionar cliente</option>
                   {clients.map(client => (
                     <option key={client._id} value={client._id}>
-                      {client.name} - {client.email}
+                      {client.name} - {client.email} - Términos: {client.paymentTerms || 30} días
                     </option>
                   ))}
                 </select>
@@ -535,6 +886,11 @@ export function VentasPage() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Fecha de Vencimiento
+                  {selectedClient && (
+                    <span className="text-xs text-gray-500 ml-2">
+                      (Calculada automáticamente)
+                    </span>
+                  )}
                 </label>
                 <input
                   type="date"
@@ -542,44 +898,124 @@ export function VentasPage() {
                   value={formData.dueDate}
                   onChange={handleInputChange}
                   className="w-full input-field"
+                  title={selectedClient ? "Puedes editar esta fecha si necesitas un vencimiento diferente" : "Selecciona un cliente para calcular automáticamente la fecha de vencimiento"}
                 />
+                {selectedClient && formData.dueDate && (
+                  <p className="text-xs text-gray-600 mt-1">
+                    💡 Esta fecha se calculó automáticamente basada en los términos de pago del cliente. Puedes editarla si necesitas una fecha diferente.
+                  </p>
+                )}
               </div>
             </div>
 
             {/* Selección de Productos */}
             <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Productos</h3>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">Productos</h3>
+                
+                {/* Selector de modo de venta */}
+                <div className="flex bg-gray-100 rounded-lg p-1">
+                  <button
+                    type="button"
+                    onClick={() => setSaleMode('products')}
+                    className={`px-3 py-1 rounded-md text-sm font-medium transition-all duration-200 ${
+                      saleMode === 'products'
+                        ? 'bg-white text-blue-600 shadow-sm'
+                        : 'text-gray-600 hover:text-gray-900'
+                    }`}
+                  >
+                    <Package2 className="w-4 h-4 inline mr-1" />
+                    Productos
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSaleMode('packages')}
+                    className={`px-3 py-1 rounded-md text-sm font-medium transition-all duration-200 ${
+                      saleMode === 'packages'
+                        ? 'bg-white text-blue-600 shadow-sm'
+                        : 'text-gray-600 hover:text-gray-900'
+                    }`}
+                  >
+                    <Package2 className="w-4 h-4 inline mr-1" />
+                    Paquetes
+                  </button>
+                </div>
+              </div>
               
-              {/* Mensaje de ayuda sobre lotes */}
+              {/* Mensaje de ayuda */}
               <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
                 <p className="text-sm text-blue-700">
-                  <strong>💡 Sistema de Lotes:</strong> 
-                  {selectedProducts.some(item => availableBatches[item.product] && availableBatches[item.product].length > 0) ? (
-                    'Después de seleccionar un producto, debe elegir el lote específico del cual se venderá. Esto permite un control preciso del inventario y trazabilidad de los productos vendidos.'
+                  {saleMode === 'products' ? (
+                    <>
+                      <strong>💡 Sistema de Lotes:</strong> 
+                      {selectedProducts.some(item => availableBatches[item.product] && availableBatches[item.product].length > 0) ? (
+                        ' Después de seleccionar un producto, debe elegir el lote específico del cual se venderá. Esto permite un control preciso del inventario y trazabilidad de los productos vendidos.'
+                      ) : (
+                        ' Los productos seleccionados no manejan lotes, por lo que se pueden vender directamente desde el inventario general.'
+                      )}
+                    </>
                   ) : (
-                    'Los productos seleccionados no manejan lotes, por lo que se pueden vender directamente desde el inventario general.'
+                    <>
+                      <strong>📦 Sistema de Paquetes:</strong> 
+                      ' Selecciona paquetes predefinidos que contienen múltiples productos. El sistema verificará automáticamente la disponibilidad de stock de todos los productos incluidos en el paquete.'
+                    </>
                   )}
                 </p>
               </div>
               
-              {/* Selector de productos */}
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Agregar Producto
-                </label>
-                <select
-                  onChange={(e) => handleProductSelect(e.target.value)}
-                  className="w-full input-field"
-                  defaultValue=""
-                >
-                  <option value="">Seleccionar producto</option>
-                  {products.map(product => (
-                    <option key={product._id} value={product._id}>
-                      {product.name} - Precio: {formatCurrency(product.price)} - Stock: {product.stock || 0}
+              {/* Selector de productos o paquetes - Solo en modo creación */}
+              {!editingSale && (
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    {saleMode === 'products' ? 'Agregar Producto' : 'Agregar Paquete'}
+                  </label>
+                  <select
+                    onChange={(e) => {
+                      if (saleMode === 'products') {
+                        handleProductSelect(e.target.value)
+                      } else {
+                        handlePackageSelect(e.target.value)
+                      }
+                    }}
+                    className="w-full input-field"
+                    defaultValue=""
+                  >
+                    <option value="">
+                      {saleMode === 'products' ? 'Seleccionar producto' : 'Seleccionar paquete'}
                     </option>
-                  ))}
-                </select>
-              </div>
+                    {saleMode === 'products' ? (
+                      products.map(product => (
+                        <option key={product._id} value={product._id}>
+                          {product.name} - Precio: {formatCurrency(product.price)} - Stock: {product.stock || 0}
+                        </option>
+                      ))
+                    ) : (
+                      (() => {
+                        console.log('Rendering packages, availablePackages:', availablePackages);
+                        return availablePackages.map(packageItem => (
+                          <option 
+                            key={packageItem._id} 
+                            value={packageItem._id}
+                            disabled={!packageItem.stockAvailable}
+                          >
+                            {packageItem.name} - Precio: {formatCurrency(packageItem.finalPrice)} - 
+                            {packageItem.stockAvailable ? 'Disponible' : 'Sin stock'}
+                          </option>
+                        ));
+                      })()
+                    )}
+                  </select>
+                </div>
+              )}
+
+              {/* Información de modo edición */}
+              {editingSale && (
+                <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <p className="text-sm text-yellow-700">
+                    <strong>Modo Edición:</strong> Los productos ya están seleccionados. Puedes editar cantidades, lotes y descuentos, pero no agregar nuevos productos.
+                  </p>
+                </div>
+              )}
 
               {/* Lista de productos seleccionados */}
               {selectedProducts.length > 0 && (
@@ -588,60 +1024,139 @@ export function VentasPage() {
                   {selectedProducts.map((item, index) => (
                     <div key={index} className="bg-gray-50 rounded-lg p-4 space-y-3">
                       <div className="flex items-center justify-between">
-                        <span className="font-medium">{getProductName(item.product)}</span>
+                        <span className="font-medium">
+                          {getItemName(item)}
+                          {item.isPackage && (
+                            <span className="ml-2 px-2 py-1 bg-blue-100 text-blue-600 text-xs rounded-full">
+                              Paquete
+                            </span>
+                          )}
+                          {item.isFromPackage && (
+                            <span className="ml-2 px-2 py-1 bg-green-100 text-green-600 text-xs rounded-full">
+                              De Paquete
+                            </span>
+                          )}
+                        </span>
                         <Button
                           type="button"
                           variant="ghost"
                           size="sm"
-                          onClick={() => removeProduct(item.product, index)}
+                          onClick={() => removeProduct(item.isPackage ? item.package : item.product, index)}
                           className="text-red-500 hover:text-red-700"
                         >
                           <XCircle className="w-4 h-4" />
                         </Button>
                       </div>
                       
-                      {/* Selector de Lotes */}
+                      {/* Selector de Múltiples Lotes */}
                       <div className="bg-blue-50 rounded-lg p-3">
                         <label className="block text-xs font-medium text-blue-700 mb-2 flex items-center">
                           <Package2 className="w-4 h-4 mr-1" />
-                          Seleccionar Lote {availableBatches[item.product] && availableBatches[item.product].length > 0 ? '*' : '(Opcional)'}
+                          Seleccionar Lotes {availableBatches[item.product] && availableBatches[item.product].length > 0 ? '*' : '(Opcional)'}
                         </label>
                         {availableBatches[item.product] && availableBatches[item.product].length > 0 ? (
-                          <select
-                            value={selectedBatches[item.product] || ''}
-                            onChange={(e) => handleBatchSelect(item.product, e.target.value)}
-                            className="w-full input-field text-sm border-blue-200 focus:border-blue-500"
-                            required
-                          >
-                            <option value="">Seleccionar lote...</option>
-                            {availableBatches[item.product].map(batch => (
-                              <option key={batch._id} value={batch._id}>
-                                Lote #{batch.batchNumber} - Stock: {batch.currentStock} {batch.unit} - Vence: {new Date(batch.expirationDate).toLocaleDateString()}
-                              </option>
-                            ))}
-                          </select>
+                          <div className="space-y-3">
+                            {/* Lotes Seleccionados */}
+                            {(() => {
+                              console.log(`=== RENDERIZANDO LOTES PARA PRODUCTO ${item.product} ===`)
+                              console.log('selectedBatches[item.product]:', selectedBatches[item.product])
+                              console.log('availableBatches[item.product]:', availableBatches[item.product])
+                              console.log('Condición lotes seleccionados:', selectedBatches[item.product] && selectedBatches[item.product].length > 0)
+                              return null
+                            })()}
+                            {selectedBatches[item.product] && selectedBatches[item.product].length > 0 && (
+                              <div className="space-y-2">
+                                {selectedBatches[item.product].map((selectedBatch, index) => {
+                                  const batch = availableBatches[item.product].find(b => b._id === selectedBatch.batchId);
+                                  console.log(`Lote ${index}:`, selectedBatch, 'Batch encontrado:', batch)
+                                  return batch ? (
+                                    <div key={selectedBatch.batchId} className="flex items-center justify-between bg-green-50 p-2 rounded border border-green-200">
+                                      <div className="flex-1">
+                                        <p className="text-xs text-green-700 font-medium">
+                                          Lote #{batch.batchNumber} - Vence: {new Date(batch.expirationDate).toLocaleDateString()}
+                                        </p>
+                                        <p className="text-xs text-green-600">
+                                          Stock disponible: {batch.currentStock} {batch.unit}
+                                        </p>
+                                      </div>
+                                      <div className="flex items-center space-x-2">
+                                        <input
+                                          type="number"
+                                          min="1"
+                                          max={batch.currentStock}
+                                          value={selectedBatch.quantity}
+                                          onChange={(e) => handleBatchQuantityChange(item.product, selectedBatch.batchId, parseInt(e.target.value) || 0)}
+                                          className="w-16 px-2 py-1 text-xs border border-green-300 rounded focus:border-green-500 focus:outline-none"
+                                        />
+                                        <button
+                                          type="button"
+                                          onClick={() => handleBatchRemove(item.product, selectedBatch.batchId)}
+                                          className="text-red-500 hover:text-red-700 text-xs"
+                                        >
+                                          ✕
+                                        </button>
+                                      </div>
+                                    </div>
+                                  ) : null;
+                                })}
+                                
+                                {/* Resumen de cantidad total */}
+                                <div className="text-xs text-blue-700 bg-blue-100 p-2 rounded">
+                                  <strong>Total seleccionado:</strong> {getTotalBatchQuantity(item.product)} / {item.quantity} {item.quantity === 1 ? 'unidad' : 'unidades'}
+                                  {getTotalBatchQuantity(item.product) < item.quantity && (
+                                    <span className="text-orange-600 ml-2">
+                                      ⚠️ Faltan {item.quantity - getTotalBatchQuantity(item.product)} unidades
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+                            
+                            {/* Selector para agregar más lotes */}
+                            <div className="flex space-x-2">
+                              <select
+                                value=""
+                                onChange={(e) => {
+                                  if (e.target.value) {
+                                    handleBatchAdd(item.product, e.target.value, 1);
+                                    e.target.value = '';
+                                  }
+                                }}
+                                className="flex-1 input-field text-sm border-blue-200 focus:border-blue-500"
+                              >
+                                <option value="">Agregar lote...</option>
+                                {availableBatches[item.product]
+                                  .filter(batch => {
+                                    const selectedBatch = selectedBatches[item.product]?.find(sb => sb.batchId === batch._id);
+                                    return !selectedBatch || selectedBatch.quantity < batch.currentStock;
+                                  })
+                                  .map(batch => (
+                                    <option key={batch._id} value={batch._id}>
+                                      Lote #{batch.batchNumber} - Stock: {batch.currentStock} {batch.unit} - Vence: {new Date(batch.expirationDate).toLocaleDateString()}
+                                    </option>
+                                  ))}
+                              </select>
+                            </div>
+                          </div>
                         ) : (
                           <div className="text-sm text-gray-600 bg-gray-50 p-2 rounded">
                             Este producto no maneja lotes - se puede vender directamente
                           </div>
                         )}
-                        {!selectedBatches[item.product] && availableBatches[item.product] && availableBatches[item.product].length > 0 && (
-                          <p className="text-xs text-orange-600 mt-1">
-                            ⚠️ Debe seleccionar un lote para continuar
-                          </p>
-                        )}
-                        {selectedBatches[item.product] && (
-                          <div className="mt-2 p-2 bg-green-50 rounded border border-green-200">
-                            <p className="text-xs text-green-700">
-                              ✅ Lote seleccionado: Stock disponible: {
-                                availableBatches[item.product]?.find(batch => batch._id === selectedBatches[item.product])?.currentStock || 0
-                              } {
-                                availableBatches[item.product]?.find(batch => batch._id === selectedBatches[item.product])?.unit || ''
-                              }
-                            </p>
-                          </div>
-                        )}
                       </div>
+
+                      {/* Información del producto de paquete */}
+                      {item.isFromPackage && (
+                        <div className="bg-blue-50 rounded-lg p-3">
+                          <label className="block text-xs font-medium text-blue-700 mb-2 flex items-center">
+                            <Package2 className="w-4 h-4 mr-1" />
+                            Producto de Paquete
+                          </label>
+                          <div className="text-sm text-blue-600 bg-blue-100 p-2 rounded">
+                            Este producto forma parte del paquete "{item.packageName}". Selecciona el lote específico para este producto.
+                          </div>
+                        </div>
+                      )}
                       
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                         <div>
@@ -650,7 +1165,13 @@ export function VentasPage() {
                             type="number"
                             min="1"
                             value={item.quantity}
-                            onChange={(e) => handleProductQuantityChange(item.product, parseInt(e.target.value))}
+                            onChange={(e) => {
+                              if (item.isPackage) {
+                                handlePackageQuantityChange(item.package, parseInt(e.target.value))
+                              } else {
+                                handleProductQuantityChange(item.product, parseInt(e.target.value))
+                              }
+                            }}
                             className="w-full input-field text-sm"
                           />
                         </div>
@@ -674,7 +1195,13 @@ export function VentasPage() {
                             min="0"
                             step="0.01"
                             value={item.discount}
-                            onChange={(e) => handleProductDiscountChange(item.product, parseFloat(e.target.value))}
+                            onChange={(e) => {
+                              if (item.isPackage) {
+                                handlePackageDiscountChange(item.package, parseFloat(e.target.value))
+                              } else {
+                                handleProductDiscountChange(item.product, parseFloat(e.target.value))
+                              }
+                            }}
                             className="w-full input-field text-sm"
                           />
                         </div>
@@ -701,7 +1228,7 @@ export function VentasPage() {
                       <span className="font-medium">{formatCurrency(calculateTotals().subtotal)}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span>IVA (16%):</span>
+                      <span>IVA ({calculateTotals().ivaPercentage}%):</span>
                       <span className="font-medium">{formatCurrency(calculateTotals().tax)}</span>
                     </div>
                     <div className="flex justify-between text-lg font-bold text-blue-900">

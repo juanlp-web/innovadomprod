@@ -6,7 +6,7 @@ import { useSuppliers } from '@/hooks/useSuppliers'
 import { useProducts } from '@/hooks/useProducts'
 import { PurchaseModal } from '@/components/PurchaseModal'
 
-export function ComprasPage() {
+function ComprasPage() {
   const [showForm, setShowForm] = useState(false)
   const [editingPurchase, setEditingPurchase] = useState(null)
   const [searchTerm, setSearchTerm] = useState('')
@@ -44,6 +44,7 @@ export function ComprasPage() {
 
   // Aplicar filtros y búsqueda
   const applyFilters = () => {
+    console.log('🚀 applyFilters ejecutándose')
     const params = {
       page: currentPage,
       limit: 10
@@ -54,6 +55,7 @@ export function ComprasPage() {
     if (filterCategory !== 'todos') params.category = filterCategory
     if (filterSupplier !== 'todos') params.supplier = filterSupplier
 
+    console.log('📡 Llamando fetchPurchases con params:', params)
     fetchPurchases(params)
   }
 
@@ -73,14 +75,21 @@ export function ComprasPage() {
     fetchPurchases(params)
   }
 
-  // Aplicar filtros cuando cambien
+  // Aplicar filtros cuando cambien (solo después del montaje inicial)
   useEffect(() => {
-    applyFilters()
+    console.log('🔄 useEffect filtros ejecutándose:', { filterStatus, filterCategory, filterSupplier })
+    // Evitar ejecutar en el montaje inicial
+    if (filterStatus !== 'todos' || filterCategory !== 'todos' || filterSupplier !== 'todos') {
+      console.log('📡 Aplicando filtros desde useEffect')
+      applyFilters()
+    }
   }, [filterStatus, filterCategory, filterSupplier])
 
   // Aplicar búsqueda con debounce
   useEffect(() => {
+    console.log('🔍 useEffect búsqueda ejecutándose:', { searchTerm })
     const timer = setTimeout(() => {
+      console.log('📡 Aplicando búsqueda desde useEffect')
       setCurrentPage(1)
       applyFilters()
     }, 500)
@@ -149,7 +158,21 @@ export function ComprasPage() {
 
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A'
-    return new Date(dateString).toLocaleDateString('es-DO')
+    
+    // Extraer solo la parte de la fecha si incluye tiempo
+    const datePart = dateString.includes('T') ? dateString.split('T')[0] : dateString
+    
+    // Dividir la fecha en componentes
+    const [year, month, day] = datePart.split('-')
+    
+    // Formatear directamente sin usar new Date para evitar problemas de zona horaria
+    const dayNum = parseInt(day, 10)
+    const monthNum = parseInt(month, 10)
+    const yearNum = parseInt(year, 10)
+    
+    // Crear fecha en formato local sin conversión de zona horaria
+    const formattedDate = `${dayNum}/${monthNum}/${yearNum}`
+    return formattedDate
   }
 
   if (loading && purchases.length === 0) {
@@ -440,3 +463,7 @@ export function ComprasPage() {
     </div>
   )
 }
+
+// Exportaciones
+export { ComprasPage };
+export default ComprasPage;

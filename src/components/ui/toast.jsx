@@ -75,10 +75,10 @@ export function Toast({ message, type = 'info', duration = 5000, onClose }) {
   )
 }
 
-export function ToastContainer({ toasts, removeToast }) {
+export function ToastContainer({ toasts = [], removeToast }) {
   return (
     <div className="fixed top-4 right-4 z-50 space-y-2">
-      {toasts.map((toast) => (
+      {toasts && toasts.length > 0 && toasts.map((toast) => (
         <Toast
           key={toast.id}
           message={toast.message}

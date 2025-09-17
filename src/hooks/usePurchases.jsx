@@ -15,6 +15,7 @@ export function usePurchases() {
 
   // Obtener todas las compras
   const fetchPurchases = useCallback(async (params = {}) => {
+    console.log('🔍 fetchPurchases ejecutándose con params:', params);
     try {
       setLoading(true);
       setError(null);
@@ -24,6 +25,7 @@ export function usePurchases() {
       if (response.data.success) {
         setPurchases(response.data.data);
         setPagination(response.data.pagination);
+        console.log('✅ fetchPurchases completado exitosamente');
       } else {
         setError('Error al obtener las compras');
       }
@@ -213,8 +215,9 @@ export function usePurchases() {
 
   // Cargar compras al montar el componente
   useEffect(() => {
+    console.log('🚀 usePurchases useEffect ejecutándose - carga inicial');
     fetchPurchases();
-  }, [fetchPurchases]);
+  }, []); // Remover fetchPurchases de las dependencias para evitar re-renders
 
   return {
     // Estado
@@ -236,3 +239,6 @@ export function usePurchases() {
     clearError
   };
 }
+
+// Exportación por defecto también
+export default usePurchases;

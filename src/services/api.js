@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // Configuración base de la API
-const API_BASE_URL = 'https://productonebackend.onrender.com/api';
+const API_BASE_URL = 'http://localhost:5000/api';
 
 // Crear instancia de axios con configuración base
 const api = axios.create({
@@ -117,11 +117,13 @@ export const salesAPI = {
   getById: (id) => api.get(`/sales/${id}`),
   create: (saleData) => api.post('/sales', saleData),
   update: (id, saleData) => api.put(`/sales/${id}`, saleData),
+  updatePaymentStatus: (id, status) => api.put(`/sales/${id}/payment-status`, { paymentStatus: status }),
   delete: (id) => api.delete(`/sales/${id}`),
   getStats: () => api.get('/sales/stats/overview'),
   getByDateRange: (startDate, endDate) => api.get('/sales/date-range', { 
     params: { startDate, endDate } 
   }),
+  getAvailablePackages: () => api.get('/sales/available-packages'),
 };
 
 // Servicios de compras
@@ -136,6 +138,17 @@ export const purchasesAPI = {
   getBySupplier: (supplierId) => api.get(`/purchases/supplier/${supplierId}`),
 };
 
+// Servicios de paquetes
+export const packagesAPI = {
+  getAll: (params) => api.get('/packages', { params }),
+  getById: (id) => api.get(`/packages/${id}`),
+  create: (packageData) => api.post('/packages', packageData),
+  update: (id, packageData) => api.put(`/packages/${id}`, packageData),
+  delete: (id) => api.delete(`/packages/${id}`),
+  getStats: () => api.get('/packages/stats/overview'),
+  checkStock: (id) => api.get(`/packages/${id}/stock-check`),
+};
+
 // Servicios de usuarios (solo admin)
 export const usersAPI = {
   getAll: (params) => api.get('/users', { params }),
@@ -145,6 +158,16 @@ export const usersAPI = {
   delete: (id) => api.delete(`/users/${id}`),
   changeRole: (id, role) => api.patch(`/users/${id}/role`, { role }),
   getStats: () => api.get('/users/stats/overview'),
+};
+
+// Servicios de configuración
+export const configAPI = {
+  getAll: () => api.get('/config'),
+  getByKey: (key) => api.get(`/config/${key}`),
+  create: (key, value, type, description) => api.post('/config', { key, value, type, description }),
+  update: (key, value, type, description) => api.put(`/config/${key}`, { value, type, description }),
+  delete: (key) => api.delete(`/config/${key}`),
+  getAllValues: () => api.get('/config/values/all'),
 };
 
 export default api;

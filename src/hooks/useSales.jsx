@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
-import { salesAPI } from '@/config/api';
+import { salesAPI } from '@/services/api';
 
 export const useSales = () => {
   const [sales, setSales] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [stats, setStats] = useState(null);
+  const [availablePackages, setAvailablePackages] = useState([]);
 
   // Obtener todas las ventas
   const fetchSales = useCallback(async (params = {}) => {
@@ -109,6 +110,32 @@ export const useSales = () => {
     }
   }, []);
 
+  // Obtener paquetes disponibles para ventas
+  const fetchAvailablePackages = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      console.log('Fetching available packages...');
+      console.log('salesAPI:', salesAPI);
+      console.log('getAvailablePackages function:', salesAPI.getAvailablePackages);
+      
+      if (typeof salesAPI.getAvailablePackages !== 'function') {
+        throw new Error('getAvailablePackages is not a function');
+      }
+      
+      const response = await salesAPI.getAvailablePackages();
+      console.log('Available packages response:', response.data);
+      setAvailablePackages(response.data);
+      return response.data;
+    } catch (err) {
+      console.error('Error al obtener paquetes disponibles:', err);
+      setError(err.response?.data?.message || 'Error al obtener paquetes disponibles');
+      return [];
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   // Limpiar error
   const clearError = useCallback(() => {
     setError(null);
@@ -124,12 +151,14 @@ export const useSales = () => {
     loading,
     error,
     stats,
+    availablePackages,
     fetchSales,
     fetchSaleById,
     createSale,
     updatePaymentStatus,
     fetchStats,
     deleteSale,
+    fetchAvailablePackages,
     clearError
   };
 };

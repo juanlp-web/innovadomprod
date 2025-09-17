@@ -7,6 +7,7 @@ export const ROUTES = {
   DASHBOARD: '/dashboard',
   RECETAS: '/dashboard/recetas',
   PRODUCTOS: '/dashboard/productos',
+  PAQUETES: '/dashboard/paquetes',
   INVENTARIO: '/dashboard/inventario',
   VENTAS: '/dashboard/ventas',
   COMPRAS: '/dashboard/compras',

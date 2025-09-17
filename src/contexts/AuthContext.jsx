@@ -18,15 +18,49 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     const initializeAuth = async () => {
-      if (token) {
+      // Verificar si hay token y usuario en localStorage
+      const storedUser = localStorage.getItem('user');
+      
+      if (token && storedUser) {
+        try {
+          // Intentar usar el usuario almacenado primero
+          const userData = JSON.parse(storedUser);
+          setUser(userData);
+          
+          // Luego verificar con el servidor en segundo plano
+          try {
+            const response = await authAPI.getProfile();
+            if (response.data && response.data.success) {
+              setUser(response.data.data);
+            }
+          } catch (profileError) {
+            // Si falla el profile, pero tenemos datos locales válidos, mantener sesión
+            console.warn('Error al verificar perfil, manteniendo sesión local:', profileError);
+            
+            // Solo hacer logout si el error indica token completamente inválido
+            if (profileError.response?.status === 401) {
+              logout();
+            }
+          }
+        } catch (parseError) {
+          console.error('Error al parsear usuario almacenado:', parseError);
+          logout();
+        }
+      } else if (token && !storedUser) {
+        // Hay token pero no usuario, intentar obtener perfil
         try {
           const response = await authAPI.getProfile();
-          setUser(response.data);
+          if (response.data && response.data.success) {
+            const userData = response.data.data;
+            setUser(userData);
+            localStorage.setItem('user', JSON.stringify(userData));
+          }
         } catch (error) {
           console.error('Error al obtener perfil:', error);
           logout();
         }
       }
+      
       setLoading(false);
     };
 
@@ -96,8 +130,12 @@ export const AuthProvider = ({ children }) => {
   const logout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
+    localStorage.removeItem('selectedTenant');
     setToken(null);
     setUser(null);
+    
+    // Forzar redirección a login
+    window.location.href = '/login';
   };
 
   const updateProfile = async (profileData) => {
@@ -144,29 +182,43 @@ export const AuthProvider = ({ children }) => {
 
   const refreshSession = async () => {
     try {
-      const response = await authAPI.refreshSession();
+      // Verificar si tenemos un token antes de intentar refrescar
+      const currentToken = localStorage.getItem('token');
+      if (!currentToken) {
+        return { success: false, message: 'No hay token para refrescar' };
+      }
+
+      // Intentar obtener el perfil actualizado (esto valida el token)
+      const response = await authAPI.getProfile();
       
-      if (response.data.success) {
-        const { token: newToken, ...userData } = response.data.data;
+      if (response.data && response.data.success) {
+        const userData = response.data.data;
         
-        localStorage.setItem('token', newToken);
+        // Actualizar datos del usuario en localStorage y estado
         localStorage.setItem('user', JSON.stringify(userData));
-        
-        setToken(newToken);
         setUser(userData);
         
+        // Actualizar timestamp de última actividad
+        localStorage.setItem('lastActivity', Date.now().toString());
+        
+        console.log('Sesión refrescada exitosamente');
         return { success: true };
       } else {
-        // Limpiar sesión si hay error
-        logout();
+        console.warn('Respuesta inválida al refrescar sesión');
         return {
           success: false,
-          message: response.data.message || 'Error al refrescar sesión'
+          message: 'Respuesta inválida del servidor'
         };
       }
     } catch (error) {
-      // Limpiar sesión si hay error
-      logout();
+      console.error('Error al refrescar sesión:', error);
+      
+      // Solo hacer logout si es un error 401 (token inválido)
+      if (error.response?.status === 401) {
+        console.warn('Token inválido, cerrando sesión');
+        logout();
+      }
+      
       return {
         success: false,
         message: error.response?.data?.message || 'Error al refrescar sesión'

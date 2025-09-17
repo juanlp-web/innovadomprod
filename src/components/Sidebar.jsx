@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
+import { TenantSelector } from '@/components/TenantSelector'
 import {
   BarChart3,
   FileText,
@@ -14,23 +15,41 @@ import {
   User,
   ChevronLeft,
   ChevronRight,
-  BookOpen
+  BookOpen,
+  FileBarChart,
+  ChevronDown,
+  ChevronUp,
+  Layers,
+  Settings
 } from 'lucide-react'
 
 export function Sidebar({ onCollapseChange, isCollapsed }) {
   const navigate = useNavigate()
   const location = useLocation()
+  const [expandedMenus, setExpandedMenus] = useState({})
 
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: BarChart3, description: 'Vista general del negocio', path: '/dashboard' },
     { id: 'recetas', label: 'Recetas', icon: BookOpen, description: 'Gestión de recetas de producción', path: '/recetas' },
     { id: 'ventas', label: 'Ventas', icon: DollarSign, description: 'Registro de ventas', path: '/ventas' },
     { id: 'compras', label: 'Compras', icon: ShoppingCart, description: 'Gestión de compras', path: '/compras' },
-    { id: 'productos', label: 'Productos', icon: Package, description: 'Catálogo de productos', path: '/productos' },
-    { id: 'inventario', label: 'Inventario', icon: Box, description: 'Control de stock', path: '/inventario' },
-    { id: 'lotes', label: 'Lotes', icon: Package2, description: 'Gestión de lotes de producción', path: '/lotes' },
+    { 
+      id: 'productos', 
+      label: 'Productos', 
+      icon: Package, 
+      description: 'Catálogo de productos', 
+      path: '/productos',
+      hasSubmenu: true,
+      submenu: [
+        { id: 'productos-list', label: 'Lista de Productos', path: '/productos' },
+        { id: 'paquetes', label: 'Paquetes', path: '/paquetes' },
+        { id: 'lotes', label: 'Lotes', path: '/lotes' }
+      ]
+    },
     { id: 'clientes', label: 'Clientes', icon: Users, description: 'Base de clientes', path: '/clientes' },
     { id: 'proveedores', label: 'Proveedores', icon: Factory, description: 'Gestión de proveedores', path: '/proveedores' },
+    { id: 'reporteria', label: 'Reportería', icon: FileBarChart, description: 'Informes y reportes del sistema', path: '/reporteria' },
+    { id: 'configuracion', label: 'Configuración', icon: Settings, description: 'Configuración del sistema', path: '/configuracion' },
     { id: 'perfil', label: 'Perfil', icon: User, description: 'Configuración personal', path: '/perfil' }
   ]
 
@@ -41,14 +60,37 @@ export function Sidebar({ onCollapseChange, isCollapsed }) {
   }
 
   const handleMenuClick = (item) => {
-    navigate(item.path)
+    if (item.hasSubmenu) {
+      setExpandedMenus(prev => ({
+        ...prev,
+        [item.id]: !prev[item.id]
+      }))
+    } else {
+      navigate(item.path)
+    }
+  }
+
+  const handleSubmenuClick = (submenuItem) => {
+    navigate(submenuItem.path)
   }
 
   // Determinar la pestaña activa basada en la ruta actual
   const getActiveTab = () => {
     const currentPath = location.pathname
+    
+    // Buscar en elementos principales
     const menuItem = menuItems.find(item => item.path === currentPath)
-    return menuItem ? menuItem.id : 'dashboard'
+    if (menuItem) return menuItem.id
+    
+    // Buscar en submenús
+    for (const item of menuItems) {
+      if (item.hasSubmenu && item.submenu) {
+        const submenuItem = item.submenu.find(sub => sub.path === currentPath)
+        if (submenuItem) return submenuItem.id
+      }
+    }
+    
+    return 'dashboard'
   }
 
   const activeTab = getActiveTab()
@@ -89,19 +131,29 @@ export function Sidebar({ onCollapseChange, isCollapsed }) {
         </div>
       </div>
 
+      {/* Tenant Selector */}
+      {!isCollapsed && (
+        <div className="px-6 py-4 border-b border-gray-100">
+          <TenantSelector />
+        </div>
+      )}
+
       {/* Menu Items */}
       <nav className="mt-6 flex-1 overflow-y-auto px-3">
         <div className="space-y-2">
           {menuItems.map((item) => {
             const IconComponent = item.icon;
             const isActive = activeTab === item.id;
+            const isExpanded = expandedMenus[item.id];
+            const hasActiveSubmenu = item.hasSubmenu && item.submenu && 
+              item.submenu.some(sub => activeTab === sub.id);
 
             return (
               <div key={item.id} className="relative">
                 <button
                   onClick={() => handleMenuClick(item)}
                   className={`w-full sidebar-item ${
-                    isActive ? 'active' : ''
+                    isActive || hasActiveSubmenu ? 'active' : ''
                   } group`}
                   title={isCollapsed ? item.label : undefined}
                 >
@@ -112,11 +164,42 @@ export function Sidebar({ onCollapseChange, isCollapsed }) {
                       <p className="text-xs text-gray-500 mt-0.5">{item.description}</p>
                     </div>
                   )}
+                  {!isCollapsed && item.hasSubmenu && (
+                    <div className="ml-2">
+                      {isExpanded ? (
+                        <ChevronUp className="w-4 h-4 text-gray-400" />
+                      ) : (
+                        <ChevronDown className="w-4 h-4 text-gray-400" />
+                      )}
+                    </div>
+                  )}
                 </button>
 
                 {/* Active indicator */}
-                {isActive && (
+                {(isActive || hasActiveSubmenu) && (
                   <div className="absolute right-0 top-1/2 transform -translate-y-1/2 w-1 h-8 bg-blue-500 rounded-l-full"></div>
+                )}
+
+                {/* Submenu */}
+                {!isCollapsed && item.hasSubmenu && isExpanded && item.submenu && (
+                  <div className="ml-6 mt-1 space-y-1">
+                    {item.submenu.map((submenuItem) => {
+                      const isSubmenuActive = activeTab === submenuItem.id;
+                      return (
+                        <button
+                          key={submenuItem.id}
+                          onClick={() => handleSubmenuClick(submenuItem)}
+                          className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-all duration-200 ${
+                            isSubmenuActive
+                              ? 'bg-blue-50 text-blue-700 font-medium'
+                              : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                          }`}
+                        >
+                          {submenuItem.label}
+                        </button>
+                      );
+                    })}
+                  </div>
                 )}
               </div>
             );

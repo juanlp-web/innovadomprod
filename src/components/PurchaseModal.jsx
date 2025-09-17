@@ -24,7 +24,16 @@ export function PurchaseModal({
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const { suppliers } = useSuppliers()
-  const { products } = useProducts()
+  const { products, loading: productsLoading } = useProducts()
+  
+  // Debug: verificar que los productos se cargan
+  useEffect(() => {
+    console.log('Productos cargados en PurchaseModal:', { 
+      count: products.length, 
+      loading: productsLoading,
+      products: products.slice(0, 3) // Primeros 3 productos para debug
+    })
+  }, [products, productsLoading])
   const [availableBatches, setAvailableBatches] = useState({})
   const [selectedBatches, setSelectedBatches] = useState({})
   const [newBatchData, setNewBatchData] = useState({})
@@ -49,12 +58,13 @@ export function PurchaseModal({
           notes: purchase.notes || ''
         })
       } else {
-        // Modo creación
+        // Modo creación - establecer fecha de entrega como fecha actual
+        const today = new Date().toISOString().split('T')[0]
         setFormData({
           supplier: '',
           items: [{ product: '', quantity: 1, unit: 'unidad', price: 0 }],
           paymentMethod: 'Transferencia Bancaria',
-          expectedDelivery: '',
+          expectedDelivery: today,
           category: 'Materia Prima',
           notes: ''
         })
@@ -119,9 +129,48 @@ export function PurchaseModal({
 
   // Cargar lotes disponibles cuando se selecciona un producto
   const handleProductSelection = async (index, productId) => {
-    if (!productId) return
+    console.log('handleProductSelection llamado:', { index, productId, productsLength: products.length })
+    
+    if (!productId) {
+      console.log('No hay productId, saliendo')
+      return
+    }
     
     try {
+      // Buscar el producto seleccionado para obtener su unidad y costo
+      const selectedProduct = products.find(p => p._id === productId)
+      console.log('Producto encontrado:', selectedProduct)
+      
+      if (selectedProduct) {
+        // Actualizar el item con la unidad y costo del producto
+        const newItems = [...formData.items]
+        newItems[index] = {
+          ...newItems[index],
+          product: productId,
+          unit: selectedProduct.unit || 'unidad',
+          price: selectedProduct.cost || 0
+        }
+        
+        console.log('Actualizando item:', {
+          index,
+          oldItem: formData.items[index],
+          newItem: newItems[index]
+        })
+        
+        setFormData(prev => ({
+          ...prev,
+          items: newItems
+        }))
+        
+        console.log('Producto seleccionado y actualizado:', {
+          name: selectedProduct.name,
+          unit: selectedProduct.unit,
+          cost: selectedProduct.cost
+        })
+      } else {
+        console.log('Producto no encontrado en la lista')
+      }
+      
       // Por ahora, no cargamos lotes existentes automáticamente
       // Los lotes se crearán cuando se complete la compra
       setAvailableBatches(prev => ({
@@ -201,18 +250,19 @@ export function PurchaseModal({
 
   // Manejar cambios en los items
   const handleItemChange = (index, field, value) => {
-    const newItems = [...formData.items]
-    newItems[index][field] = value
-    
-    // Si se cambió el producto, cargar lotes disponibles
+    // Si se cambió el producto, cargar lotes disponibles y actualizar unidad/costo
     if (field === 'product') {
       handleProductSelection(index, value)
+    } else {
+      // Para otros campos, actualizar normalmente
+      const newItems = [...formData.items]
+      newItems[index][field] = value
+      
+      setFormData(prev => ({
+        ...prev,
+        items: newItems
+      }))
     }
-    
-    setFormData(prev => ({
-      ...prev,
-      items: newItems
-    }))
   }
 
   // Agregar item

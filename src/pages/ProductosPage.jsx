@@ -43,7 +43,6 @@ export function ProductosPage() {
     minStock: 0,
     description: '',
     price: 0,
-    supplier: '',
     cost: 0,
     managesBatches: false
   })
@@ -127,7 +126,6 @@ export function ProductosPage() {
       minStock: product.minStock || 0,
       description: product.description || '',
       price: product.price || 0,
-      supplier: product.supplier || '',
       cost: product.cost || 0,
       managesBatches: product.managesBatches || false
     })
@@ -151,7 +149,6 @@ export function ProductosPage() {
       minStock: 0,
       description: '',
       price: 0,
-      supplier: '',
       cost: 0,
       managesBatches: false
     })
@@ -335,14 +332,13 @@ export function ProductosPage() {
               {/* Precio */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Precio Unitario *
+                  Precio Unitario
                 </label>
                 <input
                   type="number"
                   name="price"
                   value={formData.price}
                   onChange={handleInputChange}
-                  required
                   min="0"
                   step="0.01"
                   className="w-full input-field"
@@ -390,21 +386,6 @@ export function ProductosPage() {
                   step="0.01"
                   className="w-full input-field"
                   placeholder="0.00"
-                />
-              </div>
-
-              {/* Proveedor */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Proveedor
-                </label>
-                <input
-                  type="text"
-                  name="supplier"
-                  value={formData.supplier}
-                  onChange={handleInputChange}
-                  className="w-full input-field"
-                  placeholder="Nombre del proveedor"
                 />
               </div>
             </div>

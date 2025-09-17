@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // Configuración base de la API
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://productonebackend.onrender.com/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 // Crear instancia de axios con configuración base
 const api = axios.create({
@@ -12,13 +12,20 @@ const api = axios.create({
   },
 });
 
-// Interceptor para agregar token de autenticación
+// Interceptor para agregar token de autenticación y tenant
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+    
+    // Agregar tenant ID si está disponible
+    const tenantId = localStorage.getItem('selectedTenant');
+    if (tenantId) {
+      config.headers['X-Tenant-ID'] = tenantId;
+    }
+    
     return config;
   },
   (error) => {
@@ -32,11 +39,30 @@ api.interceptors.response.use(
     return response;
   },
   (error) => {
+    // Solo redirigir si es un error 401 y NO es una llamada de refresh o profile
     if (error.response?.status === 401) {
-      // Token expirado o inválido
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      window.location.href = '/login';
+      const isRefreshCall = error.config?.url?.includes('/auth/refresh');
+      const isProfileCall = error.config?.url?.includes('/auth/profile');
+      
+      // Log para debugging
+      console.warn('Error 401 detectado:', {
+        url: error.config?.url,
+        isRefreshCall,
+        isProfileCall,
+        timestamp: new Date().toISOString()
+      });
+      
+      // Solo hacer logout automático si no es una llamada de refresh o profile inicial
+      if (!isRefreshCall && !isProfileCall) {
+        console.warn('Realizando logout automático por token inválido');
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        
+        // Solo redirigir si no estamos ya en login
+        if (!window.location.pathname.includes('/login')) {
+          window.location.href = '/login';
+        }
+      }
     }
     return Promise.reject(error);
   }
@@ -172,6 +198,17 @@ export const profileAPI = {
   getLoginHistory: () => api.get('/profile/login-history'),
   updateNotifications: (data) => api.put('/profile/notifications', data),
   updateTheme: (data) => api.put('/profile/theme', data),
+};
+
+// Funciones de paquetes
+export const packagesAPI = {
+  getAll: (params) => api.get('/packages', { params }),
+  getById: (id) => api.get(`/packages/${id}`),
+  create: (packageData) => api.post('/packages', packageData),
+  update: (id, packageData) => api.put(`/packages/${id}`, packageData),
+  delete: (id) => api.delete(`/packages/${id}`),
+  getStats: () => api.get('/packages/stats/overview'),
+  checkStock: (id) => api.get(`/packages/${id}/stock-check`),
 };
 
 // Exportar tanto la instancia api como las APIs específicas
