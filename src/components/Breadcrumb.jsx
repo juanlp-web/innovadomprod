@@ -1,8 +1,10 @@
 import { useLocation, Link } from 'react-router-dom'
 import { ChevronRight, Home } from 'lucide-react'
+import { useMobile } from '@/hooks/useMobile'
 
 export function Breadcrumb() {
   const location = useLocation()
+  const { isMobile } = useMobile()
   
   const getBreadcrumbItems = () => {
     const pathnames = location.pathname.split('/').filter(x => x)
@@ -47,26 +49,28 @@ export function Breadcrumb() {
   if (breadcrumbItems.length === 0) return null
   
   return (
-    <nav className="flex items-center space-x-2 text-sm text-gray-500 mb-6">
+    <nav className={`flex items-center space-x-2 text-sm text-gray-500 ${isMobile ? 'mb-4 px-2' : 'mb-6'}`}>
       <Link 
         to="/dashboard" 
-        className="flex items-center space-x-1 hover:text-gray-700 transition-colors duration-200"
+        className={`flex items-center space-x-1 hover:text-gray-700 transition-colors duration-200 ${isMobile ? 'text-xs' : ''}`}
       >
-        <Home className="w-4 h-4" />
-        <span>Inicio</span>
+        <Home className={`${isMobile ? 'w-3 h-3' : 'w-4 h-4'}`} />
+        {!isMobile && <span>Inicio</span>}
       </Link>
       
       {breadcrumbItems.map((item, index) => (
         <div key={item.path} className="flex items-center space-x-2">
-          <ChevronRight className="w-4 h-4 text-gray-400" />
+          <ChevronRight className={`${isMobile ? 'w-3 h-3' : 'w-4 h-4'} text-gray-400`} />
           {item.isActive ? (
-            <span className="text-gray-900 font-medium">{item.name}</span>
+            <span className={`text-gray-900 font-medium ${isMobile ? 'text-xs' : ''}`}>
+              {isMobile && item.name.length > 15 ? `${item.name.substring(0, 15)}...` : item.name}
+            </span>
           ) : (
             <Link 
               to={item.path}
-              className="hover:text-gray-700 transition-colors duration-200"
+              className={`hover:text-gray-700 transition-colors duration-200 ${isMobile ? 'text-xs' : ''}`}
             >
-              {item.name}
+              {isMobile && item.name.length > 15 ? `${item.name.substring(0, 15)}...` : item.name}
             </Link>
           )}
         </div>

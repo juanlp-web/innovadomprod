@@ -101,8 +101,18 @@
   @apply transition-all duration-300 ease-in-out;
 }
 
+/* Estilos para cards de estadísticas */
+.stats-card {
+  @apply bg-white rounded-xl shadow-soft border border-gray-100 p-6;
+}
+
+/* Estilos para contenedores de gráficos */
+.chart-container {
+  @apply bg-white rounded-xl shadow-soft border border-gray-100 p-6;
+}
+
 /* Responsive design */
-@media (max-width: 768px) {
+@media (max-width: 1024px) {
   .sidebar-expanded {
     @apply w-64;
   }
@@ -112,12 +122,52 @@
   }
 }
 
-@media (max-width: 640px) {
+@media (max-width: 768px) {
   .sidebar-expanded {
     @apply w-56;
   }
   
   .content-adjusted {
     @apply ml-56;
+  }
+  
+  /* Optimizaciones para tablet */
+  .stats-card {
+    @apply p-4;
+  }
+  
+  .chart-container {
+    @apply p-4;
+  }
+}
+
+@media (max-width: 640px) {
+  /* Optimizaciones para móvil */
+  .stats-card {
+    @apply p-4;
+  }
+  
+  .chart-container {
+    @apply p-4;
+  }
+  
+  /* Mejorar espaciado en móvil */
+  .space-y-8 > * + * {
+    margin-top: 1.5rem;
+  }
+  
+  /* Botones más grandes para touch */
+  button, .btn-primary {
+    @apply min-h-[44px] min-w-[44px];
+  }
+  
+  /* Inputs más grandes para touch */
+  .input-field {
+    @apply min-h-[44px] text-base;
+  }
+  
+  /* Mejorar legibilidad en móvil */
+  body {
+    @apply text-base;
   }
 }

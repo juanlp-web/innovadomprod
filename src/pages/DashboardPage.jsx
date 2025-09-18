@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line, AreaChart, Area } from 'recharts'
 import { useDashboard } from '@/hooks/useDashboard'
+import { useMobile } from '@/hooks/useMobile'
 import {
   Package,
   Leaf,
@@ -24,6 +25,7 @@ import {
 
 export function DashboardPage() {
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear())
+  const { isMobile } = useMobile()
   
   const { 
     stats, 
@@ -82,24 +84,26 @@ export function DashboardPage() {
   return (
     <div className="space-y-8 animate-fade-in">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className={`flex items-center justify-between ${isMobile ? 'flex-col space-y-4' : ''}`}>
         <div>
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">Dashboard</h1>
-          <p className="text-gray-600">Vista general del rendimiento del negocio</p>
+          <h1 className={`font-bold text-gray-900 mb-2 ${isMobile ? 'text-2xl' : 'text-4xl'}`}>Dashboard</h1>
+          <p className={`text-gray-600 ${isMobile ? 'text-sm' : ''}`}>Vista general del rendimiento del negocio</p>
         </div>
-        <div className="flex items-center space-x-3">
-          <div className="text-right">
-            <p className="text-sm text-gray-500">Última actualización</p>
-            <p className="text-sm font-medium text-gray-900">{formatLastUpdate()}</p>
-          </div>
+        <div className={`flex items-center space-x-3 ${isMobile ? 'w-full justify-between' : ''}`}>
+          {!isMobile && (
+            <div className="text-right">
+              <p className="text-sm text-gray-500">Última actualización</p>
+              <p className="text-sm font-medium text-gray-900">{formatLastUpdate()}</p>
+            </div>
+          )}
           <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
           <button 
             onClick={refreshData}
             disabled={loading}
-            className="p-2 text-gray-500 hover:text-gray-700 transition-colors duration-200"
+            className={`text-gray-500 hover:text-gray-700 transition-colors duration-200 ${isMobile ? 'p-3' : 'p-2'}`}
             title="Actualizar datos"
           >
-            <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`${isMobile ? 'w-6 h-6' : 'w-5 h-5'} ${loading ? 'animate-spin' : ''}`} />
           </button>
         </div>
       </div>
@@ -107,7 +111,7 @@ export function DashboardPage() {
       {/* Navegación Rápida */}
       
       {/* Cards de Cantidades */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className={`grid gap-4 ${isMobile ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6'}`}>
         {/* Productos */}
         <div className="stats-card card-hover border-l-4 border-blue-500">
           <div className="flex items-center justify-between">
@@ -170,7 +174,7 @@ export function DashboardPage() {
       </div>
 
       {/* Cards de Proveedores y Total */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className={`grid gap-4 ${isMobile ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2 gap-6'}`}>
         {/* Proveedores */}
         <div className="stats-card card-hover border-l-4 border-indigo-500">
           <div className="flex items-center justify-between">
@@ -203,13 +207,13 @@ export function DashboardPage() {
       </div>
 
       {/* Cards de Ventas y Ganancia */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className={`grid gap-4 ${isMobile ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2 gap-6'}`}>
         {/* Ventas del Mes */}
-        <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-2xl shadow-medium p-8 text-white card-hover">
+        <div className={`bg-gradient-to-br from-green-500 to-green-600 rounded-2xl shadow-medium text-white card-hover ${isMobile ? 'p-6' : 'p-8'}`}>
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-green-100 mb-1">Ventas del Mes</p>
-              <p className="text-4xl font-bold">
+              <p className={`font-bold ${isMobile ? 'text-2xl' : 'text-4xl'}`}>
                 {loading ? '...' : formatCurrency(stats.sales.monthly)}
               </p>
             </div>
@@ -220,11 +224,11 @@ export function DashboardPage() {
         </div>
 
         {/* Ganancia del Mes */}
-        <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl shadow-medium p-8 text-white card-hover">
+        <div className={`bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl shadow-medium text-white card-hover ${isMobile ? 'p-6' : 'p-8'}`}>
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-purple-100 mb-1">Ganancia del Mes</p>
-              <p className="text-4xl font-bold">
+              <p className={`font-bold ${isMobile ? 'text-2xl' : 'text-4xl'}`}>
                 {loading ? '...' : formatCurrency(stats.sales.profit)}
               </p>
             </div>
@@ -236,17 +240,17 @@ export function DashboardPage() {
       </div>
 
       {/* Gráficos */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className={`grid gap-6 ${isMobile ? 'grid-cols-1' : 'grid-cols-1 lg:grid-cols-2 gap-8'}`}>
         {/* Top Productos Vendidos - Gráfico de Barras */}
         <div className="chart-container card-hover">
           <div className="flex items-center justify-between mb-6">
-            <h3 className="text-xl font-semibold text-gray-900">Top Productos Vendidos</h3>
+            <h3 className={`font-semibold text-gray-900 ${isMobile ? 'text-lg' : 'text-xl'}`}>Top Productos Vendidos</h3>
             <div className="flex items-center space-x-2 text-sm text-gray-500">
               <span className="w-3 h-3 bg-blue-500 rounded-full"></span>
               <span>Ventas</span>
             </div>
           </div>
-          <ResponsiveContainer width="100%" height={300}>
+          <ResponsiveContainer width="100%" height={isMobile ? 250 : 300}>
             <BarChart data={topProducts}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
               <XAxis dataKey="name" stroke="#6b7280" fontSize={12} />
@@ -267,7 +271,7 @@ export function DashboardPage() {
         {/* Ventas Mensuales - Gráfico de Línea/Área */}
         <div className="chart-container card-hover">
           <div className="flex items-center justify-between mb-6">
-            <h3 className="text-xl font-semibold text-gray-900">Ventas Mensuales</h3>
+            <h3 className={`font-semibold text-gray-900 ${isMobile ? 'text-lg' : 'text-xl'}`}>Ventas Mensuales</h3>
             <div className="flex items-center space-x-4 text-sm">
               <div className="flex items-center space-x-2">
                 <span className="w-3 h-3 bg-green-500 rounded-full"></span>
@@ -275,7 +279,7 @@ export function DashboardPage() {
               </div>
             </div>
           </div>
-          <ResponsiveContainer width="100%" height={300}>
+          <ResponsiveContainer width="100%" height={isMobile ? 250 : 300}>
             <AreaChart data={monthlyData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
               <XAxis dataKey="month" stroke="#6b7280" fontSize={12} />

@@ -29,11 +29,13 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useSidebar } from '@/hooks/useSidebar';
 import { useSessionPersistence } from '@/hooks/useSessionPersistence';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
+import { useMobile } from '@/hooks/useMobile';
 
 function App() {
   const { user, loading, logout } = useAuth();
   const { isCollapsed, setCollapsed, getSidebarMargin } = useSidebar();
   const isOnline = useOnlineStatus();
+  const { isMobile } = useMobile();
   
   // Hook para persistencia de sesión
   useSessionPersistence();
@@ -73,9 +75,11 @@ function App() {
   const renderLayout = (Component) => (
     <div className="flex h-screen bg-gray-50">
       <Sidebar onCollapseChange={setCollapsed} isCollapsed={isCollapsed} />
-      <div className={`flex-1 ${getSidebarMargin()} flex flex-col overflow-hidden transition-all duration-300`}>
-        <Breadcrumb />
-        <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-50 p-6">
+      <div className={`flex-1 ${isMobile ? 'ml-0' : getSidebarMargin()} flex flex-col overflow-hidden transition-all duration-300`}>
+        <div className={`${isMobile ? 'mt-20' : ''}`}>
+          <Breadcrumb />
+        </div>
+        <main className={`flex-1 overflow-x-hidden overflow-y-auto bg-gray-50 ${isMobile ? 'p-4' : 'p-6'}`}>
           <Component />
         </main>
       </div>
@@ -108,16 +112,20 @@ function App() {
       <PWAInstallPrompt />
       
       {/* Botón de logout cuando el usuario está logueado */}
-      <div className="fixed top-4 right-4 z-50">
-        <div className="flex items-center space-x-4">
-          <span className="text-sm text-gray-600">
-            Hola, {user.name}
-          </span>
+      <div className={`fixed top-4 z-50 ${isMobile ? 'right-4' : 'right-4'}`}>
+        <div className={`flex items-center space-x-2 ${isMobile ? 'flex-col space-y-2' : 'space-x-4'}`}>
+          {!isMobile && (
+            <span className="text-sm text-gray-600">
+              Hola, {user.name}
+            </span>
+          )}
           <button
             onClick={logout}
-            className="bg-red-600 text-white px-3 py-1 rounded-md hover:bg-red-700 text-sm"
+            className={`bg-red-600 text-white rounded-md hover:bg-red-700 text-sm transition-colors duration-200 ${
+              isMobile ? 'px-4 py-2 text-xs' : 'px-3 py-1'
+            }`}
           >
-            Cerrar Sesión
+            {isMobile ? 'Salir' : 'Cerrar Sesión'}
           </button>
         </div>
       </div>
