@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { useClients } from '@/hooks/useClients';
 import { ClientModal } from '@/components/ClientModal';
 import { ClientDetailModal } from '@/components/ClientDetailModal';
-import { Search, Plus, Filter, Eye, Edit, Trash2, AlertCircle, X, ToggleLeft, ToggleRight } from 'lucide-react';
+import { Search, Plus, Filter, Eye, Edit, Trash2, AlertCircle, X, ToggleLeft, ToggleRight, Users, UserCheck, UserX, Building2 } from 'lucide-react';
 
 export function ClientesPage() {
   const {
@@ -266,24 +266,12 @@ export function ClientesPage() {
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Gestión de Clientes</h1>
           <p className="text-gray-600 text-sm sm:text-base">Administra la base de datos de clientes</p>
         </div>
-        <div className="flex flex-col sm:flex-row gap-2">
+        <div className="flex-shrink-0">
           <Button 
-            variant="outline"
-            onClick={() => {
-              fetchClients().then(() => {
-              }).catch(err => {
-                console.error('Error de conexión:', err);
-              });
-            }}
-            className="w-full sm:w-auto"
-          >
-            🔍 Probar Conexión
-          </Button>
-          <Button 
-            className="bg-purple-600 hover:bg-purple-700 w-full sm:w-auto"
             onClick={handleNewClient}
+            className={`btn-primary flex items-center justify-center space-x-2 shadow-medium hover:shadow-strong transform hover:-translate-y-1 transition-all duration-300 w-full sm:w-auto`}
           >
-            <Plus className="w-4 h-4 mr-2" />
+            <Plus className="w-5 h-5" />
             <span className="hidden sm:inline">Nuevo Cliente</span>
             <span className="sm:hidden">Nuevo</span>
           </Button>
@@ -308,27 +296,6 @@ export function ClientesPage() {
         </div>
       )}
 
-      {/* Estadísticas */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-        {[
-          { title: 'Total Clientes', value: stats.total, icon: '👥', color: 'bg-blue-500' },
-          { title: 'Clientes Activos', value: stats.active, icon: '✅', color: 'bg-green-500' },
-          { title: 'Clientes Inactivos', value: stats.inactive, icon: '❌', color: 'bg-red-500' },
-          { title: 'Empresas', value: stats.empresa, icon: '🏢', color: 'bg-purple-500' }
-        ].map((stat, index) => (
-          <div key={index} className="bg-white shadow rounded-lg border border-gray-200 p-4 sm:p-6">
-            <div className="flex flex-col sm:flex-row sm:items-center text-center sm:text-left">
-              <div className={`h-12 w-12 ${stat.color} rounded-lg flex items-center justify-center mx-auto sm:mx-0 sm:mr-4 mb-3 sm:mb-0`}>
-                <span className="text-white text-xl">{stat.icon}</span>
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-500">{stat.title}</p>
-                <p className="text-xl sm:text-2xl font-bold text-gray-900">{stat.value}</p>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
 
       {/* Filtros y búsqueda */}
       <div className="bg-white shadow rounded-lg border border-gray-200 p-6">
@@ -472,7 +439,7 @@ export function ClientesPage() {
                     <div className="flex flex-wrap gap-2">
                       <Button 
                         size="sm" 
-                        variant="outline" 
+                        variant="outline-blue"
                         onClick={() => handleViewClient(client)}
                         className="flex-1 text-xs p-2"
                       >
@@ -481,7 +448,7 @@ export function ClientesPage() {
                       </Button>
                       <Button 
                         size="sm" 
-                        variant="outline" 
+                        variant="outline-yellow"
                         onClick={() => handleEditClient(client)}
                         className="flex-1 text-xs p-2"
                       >
@@ -490,10 +457,12 @@ export function ClientesPage() {
                       </Button>
                       <Button 
                         size="sm" 
-                        variant="outline"
+                        variant={client.isActive ? 'outline-red' : 'outline-green'}
                         onClick={() => handleStatusChange(client)}
                         className={`flex-1 text-xs p-2 ${
-                          client.isActive ? 'text-red-600 hover:text-red-800' : 'text-green-600 hover:text-green-800'
+                          client.isActive 
+                            ? 'text-red-600 hover:text-red-800' 
+                            : 'text-green-600 hover:text-green-800'
                         }`}
                       >
                         {(() => {
@@ -525,7 +494,7 @@ export function ClientesPage() {
                       </Button>
                       <Button 
                         size="sm" 
-                        variant="outline"
+                        variant="outline-red"
                         onClick={() => handleDeleteClient(client)}
                         className="flex-1 text-xs p-2 text-red-600 hover:text-red-800"
                       >
@@ -583,25 +552,30 @@ export function ClientesPage() {
                           <div className="flex space-x-2">
                             <Button 
                               size="sm" 
-                              variant="outline" 
+                              variant="outline-blue"
                               onClick={() => handleViewClient(client)}
+                              className=""
                             >
                               <Eye className="w-4 h-4 mr-1" />
                               Ver
                             </Button>
                             <Button 
                               size="sm" 
-                              variant="outline" 
+                              variant="outline-yellow"
                               onClick={() => handleEditClient(client)}
+                              className=""
                             >
                               <Edit className="w-4 h-4 mr-1" />
                               Editar
                             </Button>
                             <Button 
                               size="sm" 
-                              variant="outline"
+                              variant={client.isActive ? 'outline-red' : 'outline-green'}
                               onClick={() => handleStatusChange(client)}
-                              className={client.isActive ? 'text-red-600 hover:text-red-800' : 'text-green-600 hover:text-green-800'}
+                              className={client.isActive 
+                                ? 'text-red-600 hover:text-red-800' 
+                                : 'text-green-600 hover:text-green-800'
+                              }
                             >
                               {(() => {
                                 if (client.status) {
@@ -632,7 +606,7 @@ export function ClientesPage() {
                             </Button>
                             <Button 
                               size="sm" 
-                              variant="outline"
+                              variant="outline-red"
                               onClick={() => handleDeleteClient(client)}
                               className="text-red-600 hover:text-red-800"
                             >
@@ -659,11 +633,12 @@ export function ClientesPage() {
                 size="sm"
                 onClick={() => changePage(pagination.currentPage - 1)}
                 disabled={pagination.currentPage === 1}
+                className=""
               >
                 Anterior
               </Button>
               
-              <span className="text-sm text-gray-600">
+              <span className="text-sm text-gray-600 dark:text-gray-400">
                 Página {pagination.currentPage} de {pagination.totalPages}
               </span>
               
@@ -672,12 +647,38 @@ export function ClientesPage() {
                 size="sm"
                 onClick={() => changePage(pagination.currentPage + 1)}
                 disabled={pagination.currentPage === pagination.totalPages}
+                className=""
               >
                 Siguiente
               </Button>
             </div>
           </div>
         )}
+      </div>
+
+      {/* Estadísticas */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+        {[
+          { title: 'Total Clientes', value: stats.total, icon: Users, color: 'bg-blue-500' },
+          { title: 'Clientes Activos', value: stats.active, icon: UserCheck, color: 'bg-green-500' },
+          { title: 'Clientes Inactivos', value: stats.inactive, icon: UserX, color: 'bg-red-500' },
+          { title: 'Empresas', value: stats.empresa, icon: Building2, color: 'bg-purple-500' }
+        ].map((stat, index) => {
+          const IconComponent = stat.icon;
+          return (
+            <div key={index} className="bg-white shadow rounded-lg border border-gray-200 p-4 sm:p-6">
+              <div className="flex flex-col sm:flex-row sm:items-center text-center sm:text-left">
+                <div className={`h-12 w-12 ${stat.color} rounded-lg flex items-center justify-center mx-auto sm:mx-0 sm:mr-4 mb-3 sm:mb-0`}>
+                  <IconComponent className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-500">{stat.title}</p>
+                  <p className="text-xl sm:text-2xl font-bold text-gray-900">{stat.value}</p>
+                </div>
+              </div>
+            </div>
+          );
+        })}
       </div>
 
       {/* Modal de cliente */}

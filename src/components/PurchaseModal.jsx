@@ -18,7 +18,6 @@ export function PurchaseModal({
     items: [{ product: '', quantity: 1, unit: 'unidad', price: 0 }],
     paymentMethod: 'Transferencia Bancaria',
     expectedDelivery: '',
-    category: 'Materia Prima',
     notes: ''
   })
 
@@ -56,7 +55,6 @@ export function PurchaseModal({
           })),
           paymentMethod: purchase.paymentMethod,
           expectedDelivery: purchase.expectedDelivery ? new Date(purchase.expectedDelivery).toISOString().split('T')[0] : '',
-          category: purchase.category,
           notes: purchase.notes || ''
         })
       } else {
@@ -67,7 +65,6 @@ export function PurchaseModal({
           items: [{ product: '', quantity: 1, unit: 'unidad', price: 0 }],
           paymentMethod: 'Transferencia Bancaria',
           expectedDelivery: today,
-          category: 'Materia Prima',
           notes: ''
         })
       }
@@ -85,10 +82,6 @@ export function PurchaseModal({
 
     if (!formData.expectedDelivery) {
       newErrors.expectedDelivery = 'La fecha de entrega es requerida'
-    }
-
-    if (!formData.category) {
-      newErrors.category = 'La categoría es requerida'
     }
 
     if (formData.items.length === 0) {
@@ -397,26 +390,6 @@ export function PurchaseModal({
               )}
             </div>
 
-            {/* Categoría */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Categoría *
-              </label>
-              <select
-                value={formData.category}
-                onChange={(e) => handleInputChange('category', e.target.value)}
-                className={`w-full border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                  errors.category ? 'border-red-300' : 'border-gray-300'
-                } ${isMobile ? 'px-4 py-3 text-base' : 'px-3 py-2'}`}
-              >
-                {['Materia Prima', 'Envases', 'Químicos', 'Equipos', 'Herramientas', 'Otros'].map(category => (
-                  <option key={category} value={category}>{category}</option>
-                ))}
-              </select>
-              {errors.category && (
-                <p className="text-red-500 text-sm mt-1">{errors.category}</p>
-              )}
-            </div>
 
             {/* Método de pago */}
             <div>
@@ -492,6 +465,9 @@ export function PurchaseModal({
                   <div className={`grid gap-3 ${isMobile ? 'grid-cols-1' : 'grid-cols-12'}`}>
                   {/* Producto */}
                   <div className={isMobile ? 'w-full' : 'col-span-3'}>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">
+                      Producto *
+                    </label>
                     <select
                       value={item.product}
                       onChange={(e) => handleItemChange(index, 'product', e.target.value)}
@@ -513,6 +489,9 @@ export function PurchaseModal({
 
                   {/* Cantidad */}
                   <div className={isMobile ? 'w-full' : 'col-span-2'}>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">
+                      Cantidad *
+                    </label>
                     <input
                       type="number"
                       placeholder="Cantidad"
@@ -531,6 +510,9 @@ export function PurchaseModal({
 
                   {/* Unidad */}
                   <div className={isMobile ? 'w-full' : 'col-span-2'}>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">
+                      Unidad *
+                    </label>
                     <select
                       value={item.unit}
                       onChange={(e) => handleItemChange(index, 'unit', e.target.value)}
@@ -549,6 +531,9 @@ export function PurchaseModal({
 
                   {/* Precio */}
                   <div className={isMobile ? 'w-full' : 'col-span-2'}>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">
+                      Precio *
+                    </label>
                     <input
                       type="number"
                       placeholder="Precio"

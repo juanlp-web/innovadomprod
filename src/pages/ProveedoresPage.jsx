@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { useSuppliers } from '@/hooks/useSuppliers';
-import { Search, Plus, Filter, Eye, Edit, History, Trash2, AlertCircle, X, Save, User, Phone, Mail, MapPin, Tag, FileText } from 'lucide-react';
+import { Search, Plus, Filter, Eye, Edit, History, Trash2, AlertCircle, X, Save, User, Phone, Mail, MapPin, Tag, FileText, Building2, UserCheck, UserX, Clock } from 'lucide-react';
 
 export function ProveedoresPage() {
   const {
@@ -30,7 +30,6 @@ export function ProveedoresPage() {
   const [selectedSupplier, setSelectedSupplier] = useState(null);
   const [newSupplierForm, setNewSupplierForm] = useState({
     name: '',
-    category: 'Ingredientes',
     address: '',
     contactName: '',
     contactPhone: '',
@@ -44,7 +43,6 @@ export function ProveedoresPage() {
   });
   const [editSupplierForm, setEditSupplierForm] = useState({
     name: '',
-    category: 'Ingredientes',
     address: '',
     contactName: '',
     contactPhone: '',
@@ -145,7 +143,6 @@ export function ProveedoresPage() {
                  // Limpiar formulario y cerrar modal
          setNewSupplierForm({
            name: '',
-           category: 'Ingredientes',
            address: '',
            contactName: '',
            contactPhone: '',
@@ -172,7 +169,6 @@ export function ProveedoresPage() {
     setShowNewSupplierModal(false);
     setNewSupplierForm({
       name: '',
-      category: 'Ingredientes',
       address: '',
       contactName: '',
       contactPhone: '',
@@ -198,7 +194,6 @@ export function ProveedoresPage() {
     setSelectedSupplier(supplier);
     setEditSupplierForm({
       name: supplier.name,
-      category: supplier.category,
       address: supplier.address || '',
       contactName: supplier.contactName || '',
       contactPhone: supplier.contactPhone || '',
@@ -224,7 +219,6 @@ export function ProveedoresPage() {
     setSelectedSupplier(null);
     setEditSupplierForm({
       name: '',
-      category: 'Ingredientes',
       address: '',
       contactName: '',
       contactPhone: '',
@@ -339,10 +333,10 @@ export function ProveedoresPage() {
         </div>
         <div className="flex-shrink-0">
           <Button 
-            className="bg-purple-600 hover:bg-purple-700 w-full lg:w-auto"
             onClick={() => setShowNewSupplierModal(true)}
+            className={`btn-primary flex items-center justify-center space-x-2 shadow-medium hover:shadow-strong transform hover:-translate-y-1 transition-all duration-300 w-full lg:w-auto`}
           >
-            <Plus className="w-4 h-4 mr-2" />
+            <Plus className="w-5 h-5" />
             <span className="hidden sm:inline">Nuevo Proveedor</span>
             <span className="sm:hidden">Nuevo</span>
           </Button>
@@ -643,23 +637,26 @@ export function ProveedoresPage() {
       {/* Estadísticas de proveedores */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         {[
-          { title: 'Total Proveedores', value: stats.total, icon: '🏢', color: 'bg-blue-500' },
-          { title: 'Proveedores Activos', value: stats.active, icon: '✅', color: 'bg-green-500' },
-          { title: 'Pendientes', value: stats.pending, icon: '⏳', color: 'bg-yellow-500' },
-          { title: 'Inactivos', value: stats.inactive + stats.blocked, icon: '❌', color: 'bg-red-500' }
-        ].map((stat, index) => (
-          <div key={index} className="bg-white shadow rounded-lg border border-gray-200 p-6">
-            <div className="flex items-center">
-              <div className={`h-12 w-12 ${stat.color} rounded-lg flex items-center justify-center mr-4`}>
-                <span className="text-white text-xl">{stat.icon}</span>
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-500">{stat.title}</p>
-                <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
+          { title: 'Total Proveedores', value: stats.total, icon: Building2, color: 'bg-blue-500' },
+          { title: 'Proveedores Activos', value: stats.active, icon: UserCheck, color: 'bg-green-500' },
+          { title: 'Pendientes', value: stats.pending, icon: Clock, color: 'bg-yellow-500' },
+          { title: 'Inactivos', value: stats.inactive + stats.blocked, icon: UserX, color: 'bg-red-500' }
+        ].map((stat, index) => {
+          const IconComponent = stat.icon;
+          return (
+            <div key={index} className="bg-white shadow rounded-lg border border-gray-200 p-6">
+              <div className="flex items-center">
+                <div className={`h-12 w-12 ${stat.color} rounded-lg flex items-center justify-center mr-4`}>
+                  <IconComponent className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-500">{stat.title}</p>
+                  <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
+                </div>
               </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Modal para nuevo proveedor */}
@@ -682,41 +679,22 @@ export function ProveedoresPage() {
             {/* Formulario */}
             <form onSubmit={handleSubmitForm} className="p-6 space-y-6">
               {/* Información básica */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Nombre del Proveedor *
-                  </label>
-                  <input
-                    type="text"
-                    value={newSupplierForm.name}
-                    onChange={(e) => handleFormChange('name', e.target.value)}
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent ${
-                      formErrors.name ? 'border-red-500' : 'border-gray-300'
-                    }`}
-                    placeholder="Ej: Beauty Supplies Co."
-                  />
-                  {formErrors.name && (
-                    <p className="text-red-500 text-sm mt-1">{formErrors.name}</p>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Categoría *
-                  </label>
-                  <select
-                    value={newSupplierForm.category}
-                    onChange={(e) => handleFormChange('category', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                  >
-                    <option>Ingredientes</option>
-                    <option>Embalajes</option>
-                    <option>Equipos</option>
-                    <option>Servicios</option>
-                    <option>Otros</option>
-                  </select>
-                </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Nombre del Proveedor *
+                </label>
+                <input
+                  type="text"
+                  value={newSupplierForm.name}
+                  onChange={(e) => handleFormChange('name', e.target.value)}
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent ${
+                    formErrors.name ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                  placeholder="Ej: Beauty Supplies Co."
+                />
+                {formErrors.name && (
+                  <p className="text-red-500 text-sm mt-1">{formErrors.name}</p>
+                )}
               </div>
 
               
@@ -1024,36 +1002,17 @@ export function ProveedoresPage() {
              {/* Formulario de edición */}
              <form onSubmit={handleSubmitEditForm} className="p-6 space-y-6">
                {/* Información básica */}
-               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                 <div>
-                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                     Nombre del Proveedor *
-                   </label>
-                   <input
-                     type="text"
-                     value={editSupplierForm.name}
-                     onChange={(e) => handleEditFormChange('name', e.target.value)}
-                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                     placeholder="Ej: Beauty Supplies Co."
-                   />
-                 </div>
-
-                 <div>
-                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                     Categoría *
-                   </label>
-                   <select
-                     value={editSupplierForm.category}
-                     onChange={(e) => handleEditFormChange('category', e.target.value)}
-                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                   >
-                     <option>Ingredientes</option>
-                     <option>Embalajes</option>
-                     <option>Equipos</option>
-                     <option>Servicios</option>
-                     <option>Otros</option>
-                   </select>
-                 </div>
+               <div>
+                 <label className="block text-sm font-medium text-gray-700 mb-2">
+                   Nombre del Proveedor *
+                 </label>
+                 <input
+                   type="text"
+                   value={editSupplierForm.name}
+                   onChange={(e) => handleEditFormChange('name', e.target.value)}
+                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                   placeholder="Ej: Beauty Supplies Co."
+                 />
                </div>
 
                

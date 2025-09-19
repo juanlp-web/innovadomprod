@@ -1,8 +1,6 @@
 import { useState, useEffect } from 'react'
 import { 
   Plus, 
-  Edit, 
-  Trash2, 
   Search, 
   Calendar,
   Package,
@@ -23,7 +21,6 @@ import { ToastContainer } from '@/components/ui/toast'
 
 export function LotesPage() {
   const [showForm, setShowForm] = useState(false)
-  const [editingBatch, setEditingBatch] = useState(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [filterStatus, setFilterStatus] = useState('todos')
   const [filterProduct, setFilterProduct] = useState('todos')
@@ -43,8 +40,6 @@ export function LotesPage() {
     total,
     fetchBatches,
     createBatch,
-    updateBatch,
-    deleteBatch,
     consumeBatchStock,
     restoreBatchStock,
     clearError
@@ -113,14 +108,8 @@ export function LotesPage() {
         createdBy: user._id
       }
 
-      if (editingBatch) {
-        await updateBatch(editingBatch._id, batchData)
-        setEditingBatch(null)
-        success('Lote actualizado exitosamente')
-      } else {
-        await createBatch(batchData)
-        success('Lote creado exitosamente')
-      }
+      await createBatch(batchData)
+      success('Lote creado exitosamente')
       
       // Limpiar formulario
       setFormData({
@@ -141,41 +130,6 @@ export function LotesPage() {
     }
   }
 
-  const handleEdit = (batch) => {
-    setEditingBatch(batch)
-    setFormData({
-      batchNumber: batch.batchNumber || '',
-      product: batch.product,
-      productName: batch.productName || '',
-      quantity: batch.quantity || '',
-      unit: batch.unit || 'unidad',
-      productionDate: new Date(batch.productionDate),
-      expirationDate: new Date(batch.expirationDate),
-      cost: batch.cost || 0,
-      notes: batch.notes || ''
-    })
-    setShowForm(true)
-  }
-
-  const handleDelete = async (batch) => {
-    const confirmed = await confirm({
-      title: 'Eliminar Lote',
-      message: `¿Está seguro de que desea eliminar el lote ${batch.batchNumber}?`,
-      confirmText: 'Eliminar',
-      cancelText: 'Cancelar',
-      type: 'warning'
-    })
-
-    if (confirmed) {
-      try {
-        await deleteBatch(batch._id)
-        success('Lote eliminado exitosamente')
-      } catch (error) {
-        console.error('Error al eliminar lote:', error)
-        showError('Error al eliminar el lote')
-      }
-    }
-  }
 
   const handleConsumeStock = async () => {
     if (!selectedBatch || !consumeQuantity || consumeQuantity <= 0) {
@@ -417,14 +371,6 @@ export function LotesPage() {
                     
                     {/* Acciones */}
                     <div className="flex flex-wrap gap-2">
-                      <Button
-                        onClick={() => handleEdit(batch)}
-                        variant="ghost"
-                        size="sm"
-                        className="text-blue-600 hover:text-blue-700 p-1 h-8 w-8"
-                      >
-                        <Edit className="w-3 h-3" />
-                      </Button>
                       {batch.status === 'activo' && batch.currentStock > 0 && (
                         <>
                           <Button
@@ -447,14 +393,6 @@ export function LotesPage() {
                           </Button>
                         </>
                       )}
-                      <Button
-                        onClick={() => handleDelete(batch)}
-                        variant="ghost"
-                        size="sm"
-                        className="text-red-600 hover:text-red-700 p-1 h-8 w-8"
-                      >
-                        <Trash2 className="w-3 h-3" />
-                      </Button>
                     </div>
                   </div>
                 ))}
@@ -538,14 +476,6 @@ export function LotesPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                         <div className="flex space-x-2">
-                          <Button
-                            onClick={() => handleEdit(batch)}
-                            variant="ghost"
-                            size="sm"
-                            className="text-blue-600 hover:text-blue-700"
-                          >
-                            <Edit className="w-4 h-4" />
-                          </Button>
                           {batch.status === 'activo' && batch.currentStock > 0 && (
                             <>
                               <Button
@@ -568,14 +498,6 @@ export function LotesPage() {
                               </Button>
                             </>
                           )}
-                          <Button
-                            onClick={() => handleDelete(batch)}
-                            variant="ghost"
-                            size="sm"
-                            className="text-red-600 hover:text-red-700"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
                         </div>
                       </td>
                     </tr>
