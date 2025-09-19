@@ -4,9 +4,11 @@ import { Button } from '@/components/ui/button'
 import { usePurchases } from '@/hooks/usePurchases'
 import { useSuppliers } from '@/hooks/useSuppliers'
 import { useProducts } from '@/hooks/useProducts'
+import { useMobile } from '@/hooks/useMobile'
 import { PurchaseModal } from '@/components/PurchaseModal'
 
 function ComprasPage() {
+  const { isMobile } = useMobile()
   const [showForm, setShowForm] = useState(false)
   const [editingPurchase, setEditingPurchase] = useState(null)
   const [searchTerm, setSearchTerm] = useState('')
@@ -189,19 +191,19 @@ function ComprasPage() {
   return (
     <div className="space-y-8 animate-fade-in">
       {/* Header */}
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+      <div className={`flex ${isMobile ? 'flex-col space-y-4' : 'flex-col lg:flex-row lg:items-center lg:justify-between gap-4'}`}>
         <div className="flex-1">
-          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 mb-2">Gestión de Compras</h1>
-          <p className="text-gray-600 text-sm sm:text-base">Administra las compras y proveedores</p>
+          <h1 className={`font-bold text-gray-900 mb-2 ${isMobile ? 'text-xl' : 'text-2xl sm:text-3xl lg:text-4xl'}`}>Gestión de Compras</h1>
+          <p className={`text-gray-600 ${isMobile ? 'text-sm' : 'text-sm sm:text-base'}`}>Administra las compras y proveedores</p>
         </div>
         <div className="flex-shrink-0">
           <Button 
             onClick={() => setShowForm(true)}
-            className="w-full lg:w-auto btn-primary flex items-center justify-center space-x-2 shadow-medium hover:shadow-strong transform hover:-translate-y-1 transition-all duration-300"
+            className={`btn-primary flex items-center justify-center space-x-2 shadow-medium hover:shadow-strong transform hover:-translate-y-1 transition-all duration-300 ${isMobile ? 'w-full py-3' : 'w-full lg:w-auto'}`}
           >
             <Plus className="w-5 h-5" />
-            <span className="hidden sm:inline">Nueva Compra</span>
-            <span className="sm:hidden">Nueva</span>
+            <span className={isMobile ? 'text-base' : 'hidden sm:inline'}>Nueva Compra</span>
+            <span className={isMobile ? 'hidden' : 'sm:hidden'}>Nueva</span>
           </Button>
         </div>
       </div>
@@ -226,26 +228,26 @@ function ComprasPage() {
       )}
 
       {/* Filtros y Búsqueda */}
-      <div className="card card-hover p-4 sm:p-6">
+      <div className={`card card-hover ${isMobile ? 'p-4' : 'p-4 sm:p-6'}`}>
         <div className="flex flex-col gap-4">
           {/* Búsqueda */}
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
             <input
               type="text"
-              placeholder="Buscar compras por número o proveedor..."
+              placeholder={isMobile ? "Buscar compras..." : "Buscar compras por número o proveedor..."}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className={`w-full pl-10 pr-4 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${isMobile ? 'py-3 text-base' : 'py-2'}`}
             />
           </div>
           
           {/* Filtros */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          <div className={`grid gap-3 ${isMobile ? 'grid-cols-1' : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'}`}>
             <select
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
-              className="w-full px-3 sm:px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+              className={`w-full border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${isMobile ? 'px-4 py-3 text-base' : 'px-3 sm:px-4 py-2 text-sm'}`}
             >
               <option value="todos">Todos los estados</option>
               {statuses.map(status => (
@@ -256,7 +258,7 @@ function ComprasPage() {
             <select
               value={filterCategory}
               onChange={(e) => setFilterCategory(e.target.value)}
-              className="w-full px-3 sm:px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+              className={`w-full border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${isMobile ? 'px-4 py-3 text-base' : 'px-3 sm:px-4 py-2 text-sm'}`}
             >
               <option value="todos">Todas las categorías</option>
               {categories.map(category => (
@@ -267,7 +269,7 @@ function ComprasPage() {
             <select
               value={filterSupplier}
               onChange={(e) => setFilterSupplier(e.target.value)}
-              className="w-full px-3 sm:px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+              className={`w-full border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${isMobile ? 'px-4 py-3 text-base' : 'px-3 sm:px-4 py-2 text-sm'}`}
             >
               <option value="todos">Todos los proveedores</option>
               {suppliers.map(supplier => (
@@ -300,19 +302,19 @@ function ComprasPage() {
             </div>
           ) : (
             <>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+              <div className={`grid gap-4 ${isMobile ? 'grid-cols-1' : 'grid-cols-1 sm:grid-cols-2 sm:gap-6'}`}>
                 {purchases.map((purchase) => {
                   const statusInfo = getStatusInfo(purchase.status)
                   
                   return (
-                    <div key={purchase._id} className="bg-white border border-gray-200 rounded-xl p-4 sm:p-6 hover:shadow-medium transition-all duration-200">
+                    <div key={purchase._id} className={`bg-white border border-gray-200 rounded-xl hover:shadow-medium transition-all duration-200 ${isMobile ? 'p-4' : 'p-4 sm:p-6'}`}>
                       {/* Header de la compra */}
-                      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 mb-4">
+                      <div className={`flex ${isMobile ? 'flex-col space-y-2' : 'flex-col sm:flex-row sm:items-start sm:justify-between gap-2'} mb-4`}>
                         <div className="flex-1">
-                          <h4 className="text-base sm:text-lg font-semibold text-gray-900 mb-1">{purchase.purchaseNumber}</h4>
-                          <p className="text-sm text-gray-600">{purchase.supplierName}</p>
+                          <h4 className={`font-semibold text-gray-900 mb-1 ${isMobile ? 'text-base' : 'text-base sm:text-lg'}`}>{purchase.purchaseNumber}</h4>
+                          <p className={`text-gray-600 ${isMobile ? 'text-sm' : 'text-sm'}`}>{purchase.supplierName}</p>
                         </div>
-                        <div className="flex items-center space-x-2 self-start">
+                        <div className={`flex items-center space-x-2 ${isMobile ? 'self-start' : 'self-start'}`}>
                           <span className={`px-2 py-1 text-xs rounded-full ${statusInfo.bgColor} ${statusInfo.color}`}>
                             {statusInfo.label}
                           </span>
@@ -371,37 +373,39 @@ function ComprasPage() {
                       </div>
 
                       {/* Acciones */}
-                      <div className="flex items-center space-x-2">
+                      <div className={`flex ${isMobile ? 'flex-col space-y-2' : 'items-center space-x-2'}`}>
                         <Button
                           variant="outline"
                           size="sm"
-                          className="flex-1 btn-secondary"
+                          className={`btn-secondary ${isMobile ? 'w-full' : 'flex-1'}`}
                           onClick={() => handleEdit(purchase)}
                         >
-                          <Edit className="w-4 h-4 mr-2" />
+                          <Edit className={`${isMobile ? 'w-4 h-4 mr-2' : 'w-4 h-4 mr-2'}`} />
                           Editar
                         </Button>
                         
-                        {/* Selector de estado */}
-                        <select
-                          value={purchase.status}
-                          onChange={(e) => handleStatusChange(purchase._id, e.target.value)}
-                          className="px-3 py-1 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-                        >
-                          {statuses.map(status => (
-                            <option key={status.value} value={status.value}>{status.label}</option>
-                          ))}
-                        </select>
-                        
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleDelete(purchase._id)}
-                          className="text-red-600 hover:text-red-700 border-red-200 hover:border-red-300"
-                          disabled={purchase.status !== 'pendiente'}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
+                        <div className={`flex ${isMobile ? 'space-x-2' : 'items-center space-x-2'}`}>
+                          {/* Selector de estado */}
+                          <select
+                            value={purchase.status}
+                            onChange={(e) => handleStatusChange(purchase._id, e.target.value)}
+                            className={`border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 ${isMobile ? 'px-3 py-2 text-sm flex-1' : 'px-3 py-1 text-xs'}`}
+                          >
+                            {statuses.map(status => (
+                              <option key={status.value} value={status.value}>{status.label}</option>
+                            ))}
+                          </select>
+                          
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleDelete(purchase._id)}
+                            className={`text-red-600 hover:text-red-700 border-red-200 hover:border-red-300 ${isMobile ? 'px-3' : ''}`}
+                            disabled={purchase.status !== 'pendiente'}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   )

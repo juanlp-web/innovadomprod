@@ -3,6 +3,7 @@ import { X, Plus, Trash2, Save, Loader2, Package2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useSuppliers } from '@/hooks/useSuppliers'
 import { useProducts } from '@/hooks/useProducts'
+import { useMobile } from '@/hooks/useMobile'
 
 export function PurchaseModal({ 
   isOpen, 
@@ -11,6 +12,7 @@ export function PurchaseModal({
   onSave, 
   loading = false 
 }) {
+  const { isMobile } = useMobile()
   const [formData, setFormData] = useState({
     supplier: '',
     items: [{ product: '', quantity: 1, unit: 'unidad', price: 0 }],
@@ -350,27 +352,27 @@ export function PurchaseModal({
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden">
+    <div className={`fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 ${isMobile ? 'p-2' : 'p-4'}`}>
+      <div className={`bg-white rounded-xl shadow-2xl w-full overflow-hidden ${isMobile ? 'max-w-full max-h-[95vh]' : 'max-w-4xl max-h-[90vh]'}`}>
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <h2 className="text-2xl font-bold text-gray-900">
+        <div className={`flex items-center justify-between border-b border-gray-200 ${isMobile ? 'p-4' : 'p-6'}`}>
+          <h2 className={`font-bold text-gray-900 ${isMobile ? 'text-lg' : 'text-2xl'}`}>
             {purchase ? 'Editar Compra' : 'Nueva Compra'}
           </h2>
           <Button
             variant="ghost"
             size="sm"
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600"
+            className={`text-gray-400 hover:text-gray-600 ${isMobile ? 'p-2' : ''}`}
           >
             <X className="w-5 h-5" />
           </Button>
         </div>
 
         {/* Formulario */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-6 overflow-y-auto max-h-[calc(90vh-140px)]">
+        <form onSubmit={handleSubmit} className={`space-y-6 overflow-y-auto ${isMobile ? 'p-4 max-h-[calc(95vh-120px)]' : 'p-6 max-h-[calc(90vh-140px)]'}`}>
           {/* Información básica */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className={`grid gap-6 ${isMobile ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2'}`}>
             {/* Proveedor */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -379,9 +381,9 @@ export function PurchaseModal({
               <select
                 value={formData.supplier}
                 onChange={(e) => handleInputChange('supplier', e.target.value)}
-                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                className={`w-full border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                   errors.supplier ? 'border-red-300' : 'border-gray-300'
-                }`}
+                } ${isMobile ? 'px-4 py-3 text-base' : 'px-3 py-2'}`}
               >
                 <option value="">Seleccionar proveedor</option>
                 {suppliers.map(supplier => (
@@ -403,9 +405,9 @@ export function PurchaseModal({
               <select
                 value={formData.category}
                 onChange={(e) => handleInputChange('category', e.target.value)}
-                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                className={`w-full border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                   errors.category ? 'border-red-300' : 'border-gray-300'
-                }`}
+                } ${isMobile ? 'px-4 py-3 text-base' : 'px-3 py-2'}`}
               >
                 {['Materia Prima', 'Envases', 'Químicos', 'Equipos', 'Herramientas', 'Otros'].map(category => (
                   <option key={category} value={category}>{category}</option>
@@ -424,7 +426,7 @@ export function PurchaseModal({
               <select
                 value={formData.paymentMethod}
                 onChange={(e) => handleInputChange('paymentMethod', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className={`w-full border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${isMobile ? 'px-4 py-3 text-base' : 'px-3 py-2'}`}
               >
                 {['Efectivo', 'Transferencia Bancaria', 'Tarjeta de Crédito', 'Tarjeta de Débito', 'Cheque'].map(method => (
                   <option key={method} value={method}>{method}</option>
@@ -441,9 +443,9 @@ export function PurchaseModal({
                 type="date"
                 value={formData.expectedDelivery}
                 onChange={(e) => handleInputChange('expectedDelivery', e.target.value)}
-                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                className={`w-full border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                   errors.expectedDelivery ? 'border-red-300' : 'border-gray-300'
-                }`}
+                } ${isMobile ? 'px-4 py-3 text-base' : 'px-3 py-2'}`}
               />
               {errors.expectedDelivery && (
                 <p className="text-red-500 text-sm mt-1">{errors.expectedDelivery}</p>
@@ -486,15 +488,16 @@ export function PurchaseModal({
 
             <div className="space-y-4">
               {formData.items.map((item, index) => (
-                <div key={index} className="grid grid-cols-12 gap-3 p-4 border border-gray-200 rounded-lg">
+                <div key={index} className={`border border-gray-200 rounded-lg ${isMobile ? 'p-3' : 'p-4'}`}>
+                  <div className={`grid gap-3 ${isMobile ? 'grid-cols-1' : 'grid-cols-12'}`}>
                   {/* Producto */}
-                  <div className="col-span-3">
+                  <div className={isMobile ? 'w-full' : 'col-span-3'}>
                     <select
                       value={item.product}
                       onChange={(e) => handleItemChange(index, 'product', e.target.value)}
-                      className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                      className={`w-full border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                         errors[`items.${index}.product`] ? 'border-red-300' : 'border-gray-300'
-                      }`}
+                      } ${isMobile ? 'px-4 py-3 text-base' : 'px-3 py-2'}`}
                     >
                       <option value="">Seleccionar producto</option>
                       {products.map(product => (
@@ -509,7 +512,7 @@ export function PurchaseModal({
                   </div>
 
                   {/* Cantidad */}
-                  <div className="col-span-2">
+                  <div className={isMobile ? 'w-full' : 'col-span-2'}>
                     <input
                       type="number"
                       placeholder="Cantidad"
@@ -517,9 +520,9 @@ export function PurchaseModal({
                       onChange={(e) => handleItemChange(index, 'quantity', parseFloat(e.target.value))}
                       min="1"
                       step="0.01"
-                      className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                      className={`w-full border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                         errors[`items.${index}.quantity`] ? 'border-red-300' : 'border-gray-300'
-                      }`}
+                      } ${isMobile ? 'px-4 py-3 text-base' : 'px-3 py-2'}`}
                     />
                     {errors[`items.${index}.quantity`] && (
                       <p className="text-red-500 text-xs mt-1">{errors[`items.${index}.quantity`]}</p>
@@ -527,13 +530,13 @@ export function PurchaseModal({
                   </div>
 
                   {/* Unidad */}
-                  <div className="col-span-2">
+                  <div className={isMobile ? 'w-full' : 'col-span-2'}>
                     <select
                       value={item.unit}
                       onChange={(e) => handleItemChange(index, 'unit', e.target.value)}
-                      className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                      className={`w-full border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                         errors[`items.${index}.unit`] ? 'border-red-300' : 'border-gray-300'
-                      }`}
+                      } ${isMobile ? 'px-4 py-3 text-base' : 'px-3 py-2'}`}
                     >
                       {['kg', 'g', 'l', 'ml', 'unidad', 'docena', 'caja', 'metro', 'cm'].map(unit => (
                         <option key={unit} value={unit}>{unit}</option>
@@ -545,7 +548,7 @@ export function PurchaseModal({
                   </div>
 
                   {/* Precio */}
-                  <div className="col-span-2">
+                  <div className={isMobile ? 'w-full' : 'col-span-2'}>
                     <input
                       type="number"
                       placeholder="Precio"
@@ -553,24 +556,20 @@ export function PurchaseModal({
                       onChange={(e) => handleItemChange(index, 'price', parseFloat(e.target.value))}
                       min="0"
                       step="0.01"
-                      className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                      className={`w-full border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                         errors[`items.${index}.price`] ? 'border-red-300' : 'border-gray-300'
-                      }`}
+                      } ${isMobile ? 'px-4 py-3 text-base' : 'px-3 py-2'}`}
                     />
                     {errors[`items.${index}.price`] && (
                       <p className="text-red-500 text-xs mt-1">{errors[`items.${index}.price`]}</p>
                     )}
                   </div>
 
-                  {/* Total */}
-                  <div className="col-span-1 flex items-center justify-center">
-                    <span className="text-sm font-medium text-gray-900">
-                      {((item.quantity || 0) * (item.price || 0)).toFixed(2)}
+                  {/* Total y Acciones */}
+                  <div className={`flex items-center justify-between ${isMobile ? 'w-full' : 'col-span-2'}`}>
+                    <span className={`font-medium text-gray-900 ${isMobile ? 'text-base' : 'text-sm'}`}>
+                      Total: ${((item.quantity || 0) * (item.price || 0)).toFixed(2)}
                     </span>
-                  </div>
-
-                  {/* Acciones */}
-                  <div className="col-span-1 flex items-center justify-center">
                     <Button
                       type="button"
                       variant="ghost"
@@ -583,15 +582,17 @@ export function PurchaseModal({
                     </Button>
                   </div>
 
+                  </div>
+
                   {/* Gestión de Lotes */}
                   {item.product && products.find(p => p._id === item.product)?.managesBatches && (
-                    <div className="col-span-12 mt-3 p-3 bg-blue-50 rounded border border-blue-200">
+                    <div className={`mt-3 p-3 bg-blue-50 rounded border border-blue-200 ${isMobile ? 'w-full' : 'col-span-12'}`}>
                       <div className="flex items-center space-x-2 mb-2">
                         <Package2 className="w-4 h-4 text-blue-500" />
                         <span className="text-sm font-medium text-blue-700">Gestión de Lotes</span>
                       </div>
                       
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className={`grid gap-4 ${isMobile ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2'}`}>
                         {/* Seleccionar Lote Existente */}
                         <div>
                           <label className="block text-xs font-medium text-blue-700 mb-1">
@@ -600,7 +601,7 @@ export function PurchaseModal({
                           <select
                             value={selectedBatches[item.product] || ''}
                             onChange={(e) => handleBatchSelection(item.product, e.target.value)}
-                            className="w-full px-2 py-1 text-sm border border-blue-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                            className={`w-full border border-blue-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 ${isMobile ? 'px-3 py-2 text-base' : 'px-2 py-1 text-sm'}`}
                           >
                             <option value="">Seleccionar lote...</option>
                             {availableBatches[item.product]?.map(batch => (
@@ -622,21 +623,21 @@ export function PurchaseModal({
                               placeholder="Número de lote"
                               value={newBatchData[item.product]?.batchNumber || ''}
                               onChange={(e) => handleNewBatchData(item.product, 'batchNumber', e.target.value)}
-                              className="w-full px-2 py-1 text-sm border border-blue-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                              className={`w-full border border-blue-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 ${isMobile ? 'px-3 py-2 text-base' : 'px-2 py-1 text-sm'}`}
                             />
                             <input
                               type="date"
                               placeholder="Fecha de vencimiento"
                               value={newBatchData[item.product]?.expirationDate || ''}
                               onChange={(e) => handleNewBatchData(item.product, 'expirationDate', e.target.value)}
-                              className="w-full px-2 py-1 text-sm border border-blue-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                              className={`w-full border border-blue-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 ${isMobile ? 'px-3 py-2 text-base' : 'px-2 py-1 text-sm'}`}
                             />
                             <input
                               type="text"
                               placeholder="Notas del lote (opcional)"
                               value={newBatchData[item.product]?.notes || ''}
                               onChange={(e) => handleNewBatchData(item.product, 'notes', e.target.value)}
-                              className="w-full px-2 py-1 text-sm border border-blue-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                              className={`w-full border border-blue-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 ${isMobile ? 'px-3 py-2 text-base' : 'px-2 py-1 text-sm'}`}
                             />
                           </div>
                         </div>
@@ -676,7 +677,7 @@ export function PurchaseModal({
               value={formData.notes}
               onChange={(e) => handleInputChange('notes', e.target.value)}
               rows="3"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className={`w-full border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${isMobile ? 'px-4 py-3 text-base' : 'px-3 py-2'}`}
               placeholder="Notas adicionales sobre la compra..."
             />
           </div>
@@ -693,12 +694,13 @@ export function PurchaseModal({
         </form>
 
         {/* Footer */}
-        <div className="flex items-center justify-end space-x-3 p-6 border-t border-gray-200">
+        <div className={`flex border-t border-gray-200 bg-gray-50 ${isMobile ? 'flex-col space-y-3 p-4 sticky bottom-0' : 'items-center justify-end space-x-3 p-6'}`}>
           <Button
             type="button"
             variant="outline"
             onClick={onClose}
             disabled={isSubmitting}
+            className={`${isMobile ? 'w-full py-3 text-base' : ''}`}
           >
             Cancelar
           </Button>
@@ -706,7 +708,7 @@ export function PurchaseModal({
             type="submit"
             onClick={handleSubmit}
             disabled={isSubmitting}
-            className="btn-primary"
+            className={`btn-primary ${isMobile ? 'w-full py-3 text-base font-semibold' : ''}`}
           >
             {isSubmitting ? (
               <>
