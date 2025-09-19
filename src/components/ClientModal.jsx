@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
+import { useMobile } from '@/hooks/useMobile';
 
 export function ClientModal({ 
   isOpen, 
@@ -8,6 +9,7 @@ export function ClientModal({
   client = null, 
   loading = false 
 }) {
+  const { isMobile } = useMobile();
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -153,25 +155,29 @@ export function ClientModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 modal-backdrop flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto modal-content">
-        <div className="px-6 py-4 border-b border-gray-200">
+    <div className={`fixed inset-0 modal-backdrop flex items-center justify-center z-50 ${isMobile ? 'p-2' : 'p-4'}`}>
+      <div className={`bg-white rounded-lg shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto modal-content ${
+        isMobile ? 'max-h-[95vh] rounded-xl' : ''
+      }`}>
+        <div className={`${isMobile ? 'px-4 py-3' : 'px-6 py-4'} border-b border-gray-200 sticky top-0 bg-white z-10`}>
           <div className="flex justify-between items-center">
-            <h2 className="text-xl font-semibold text-gray-900">
+            <h2 className={`font-semibold text-gray-900 ${isMobile ? 'text-lg' : 'text-xl'}`}>
               {client ? 'Editar Cliente' : 'Nuevo Cliente'}
             </h2>
             <button
               onClick={onClose}
-              className="text-gray-400 hover:text-gray-600 transition-colors duration-200 p-1 hover:bg-gray-100 rounded-full"
+              className={`text-gray-400 hover:text-gray-600 transition-colors duration-200 hover:bg-gray-100 rounded-full ${
+                isMobile ? 'p-2' : 'p-1'
+              }`}
             >
-              ✕
+              <span className={isMobile ? 'text-lg' : ''}>✕</span>
             </button>
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+        <form onSubmit={handleSubmit} className={`${isMobile ? 'p-4' : 'p-6'} space-y-6`}>
           {/* Información básica */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className={`grid gap-4 ${isMobile ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2'}`}>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Nombre *
@@ -239,8 +245,8 @@ export function ClientModal({
 
           {/* Dirección */}
           <div className="border-t pt-4">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">Dirección</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <h3 className={`font-medium text-gray-900 mb-4 ${isMobile ? 'text-base' : 'text-lg'}`}>Dirección</h3>
+            <div className={`grid gap-4 ${isMobile ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2'}`}>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Calle
@@ -297,8 +303,8 @@ export function ClientModal({
 
           {/* Información financiera */}
           <div className="border-t pt-4">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">Información Financiera</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <h3 className={`font-medium text-gray-900 mb-4 ${isMobile ? 'text-base' : 'text-lg'}`}>Información Financiera</h3>
+            <div className={`grid gap-4 ${isMobile ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-3'}`}>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   RNC/ID Fiscal
@@ -355,8 +361,8 @@ export function ClientModal({
 
           {/* Persona de contacto */}
           <div className="border-t pt-4">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">Persona de Contacto</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <h3 className={`font-medium text-gray-900 mb-4 ${isMobile ? 'text-base' : 'text-lg'}`}>Persona de Contacto</h3>
+            <div className={`grid gap-4 ${isMobile ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-3'}`}>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Nombre
@@ -400,7 +406,7 @@ export function ClientModal({
 
           {/* Estado y notas */}
           <div className="border-t pt-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className={`grid gap-4 ${isMobile ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2'}`}>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Estado
@@ -433,19 +439,19 @@ export function ClientModal({
           </div>
 
           {/* Botones */}
-          <div className="flex justify-end space-x-3 pt-4 border-t">
+          <div className={`flex pt-4 border-t ${isMobile ? 'flex-col space-y-3' : 'justify-end space-x-3'}`}>
             <Button
               type="button"
               variant="outline"
               onClick={onClose}
               disabled={loading}
-              className="transition-all duration-200 hover:bg-gray-50"
+              className={`transition-all duration-200 hover:bg-gray-50 ${isMobile ? 'w-full' : ''}`}
             >
               Cancelar
             </Button>
             <Button
               type="submit"
-              className="bg-purple-600 hover:bg-purple-700 transition-all duration-200"
+              className={`bg-purple-600 hover:bg-purple-700 transition-all duration-200 ${isMobile ? 'w-full' : ''}`}
               disabled={loading}
             >
               {loading ? 'Guardando...' : (client ? 'Actualizar' : 'Crear')}

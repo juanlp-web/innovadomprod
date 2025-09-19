@@ -1,4 +1,5 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { useState } from 'react';
 import './App.css';
 
 // Importar tus componentes originales
@@ -18,7 +19,7 @@ import { ReporteriaPage } from '@/pages/ReporteriaPage';
 import { PerfilPage } from '@/pages/PerfilPage';
 import { ConfiguracionPage } from '@/pages/ConfiguracionPage';
 import { Sidebar } from '@/components/Sidebar';
-import { Breadcrumb } from '@/components/Breadcrumb';
+import { MobileHeader } from '@/components/MobileHeader';
 
 // PWA Components
 import { PWAInstallPrompt } from '@/components/PWAInstallPrompt';
@@ -36,6 +37,7 @@ function App() {
   const { isCollapsed, setCollapsed, getSidebarMargin } = useSidebar();
   const isOnline = useOnlineStatus();
   const { isMobile } = useMobile();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   
   // Hook para persistencia de sesión
   useSessionPersistence();
@@ -74,12 +76,23 @@ function App() {
   // Función para renderizar el layout con sidebar
   const renderLayout = (Component) => (
     <div className="flex h-screen bg-gray-50">
-      <Sidebar onCollapseChange={setCollapsed} isCollapsed={isCollapsed} />
+      {/* Mobile Header */}
+      {isMobile && (
+        <MobileHeader 
+          onMenuToggle={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+          isMenuOpen={isMobileMenuOpen}
+        />
+      )}
+      
+      <Sidebar 
+        onCollapseChange={setCollapsed} 
+        isCollapsed={isCollapsed}
+        isMobileMenuOpen={isMobileMenuOpen}
+        setIsMobileMenuOpen={setIsMobileMenuOpen}
+      />
+      
       <div className={`flex-1 ${isMobile ? 'ml-0' : getSidebarMargin()} flex flex-col overflow-hidden transition-all duration-300`}>
-        <div className={`${isMobile ? 'mt-20' : ''}`}>
-          <Breadcrumb />
-        </div>
-        <main className={`flex-1 overflow-x-hidden overflow-y-auto bg-gray-50 ${isMobile ? 'p-4' : 'p-6'}`}>
+        <main className={`flex-1 overflow-x-hidden overflow-y-auto bg-gray-50 ${isMobile ? 'p-4 mt-16' : 'p-6'}`}>
           <Component />
         </main>
       </div>
@@ -110,25 +123,6 @@ function App() {
       
       {/* PWA Install Prompt */}
       <PWAInstallPrompt />
-      
-      {/* Botón de logout cuando el usuario está logueado */}
-      <div className={`fixed top-4 z-50 ${isMobile ? 'right-4' : 'right-4'}`}>
-        <div className={`flex items-center space-x-2 ${isMobile ? 'flex-col space-y-2' : 'space-x-4'}`}>
-          {!isMobile && (
-            <span className="text-sm text-gray-600">
-              Hola, {user.name}
-            </span>
-          )}
-          <button
-            onClick={logout}
-            className={`bg-red-600 text-white rounded-md hover:bg-red-700 text-sm transition-colors duration-200 ${
-              isMobile ? 'px-4 py-2 text-xs' : 'px-3 py-1'
-            }`}
-          >
-            {isMobile ? 'Salir' : 'Cerrar Sesión'}
-          </button>
-        </div>
-      </div>
     </Router>
   );
 }

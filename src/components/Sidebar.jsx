@@ -26,11 +26,10 @@ import {
   Menu
 } from 'lucide-react'
 
-export function Sidebar({ onCollapseChange, isCollapsed }) {
+export function Sidebar({ onCollapseChange, isCollapsed, isMobileMenuOpen, setIsMobileMenuOpen }) {
   const navigate = useNavigate()
   const location = useLocation()
   const [expandedMenus, setExpandedMenus] = useState({})
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const { isMobile, isTablet } = useMobile()
 
   const menuItems = [
@@ -108,25 +107,10 @@ export function Sidebar({ onCollapseChange, isCollapsed }) {
 
   const activeTab = getActiveTab()
 
-  // En móvil, mostrar solo el botón hamburger
+  // En móvil, el botón hamburger se maneja desde MobileHeader
   if (isMobile) {
     return (
       <>
-        {/* Botón hamburger para móvil */}
-        <div className="fixed top-4 left-4 z-50 lg:hidden">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            className="p-3 bg-white shadow-lg border border-gray-200 rounded-xl hover:bg-gray-50"
-          >
-            {isMobileMenuOpen ? (
-              <X className="w-6 h-6 text-gray-700" />
-            ) : (
-              <Menu className="w-6 h-6 text-gray-700" />
-            )}
-          </Button>
-        </div>
 
         {/* Overlay para móvil */}
         {isMobileMenuOpen && (
@@ -137,31 +121,23 @@ export function Sidebar({ onCollapseChange, isCollapsed }) {
         )}
 
         {/* Sidebar móvil */}
-        <div className={`fixed left-0 top-0 h-full w-80 bg-white shadow-2xl z-50 transform transition-transform duration-300 lg:hidden ${
+        <div className={`fixed left-0 top-0 h-full w-72 bg-white shadow-2xl z-50 transform transition-transform duration-300 ease-out lg:hidden ${
           isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
         }`}>
           {/* Header móvil */}
-          <div className="p-6 border-b border-gray-100">
+          <div className="p-4 border-b border-gray-100 bg-gradient-to-r from-blue-50 to-purple-50">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
                 <img
                   src="/ProductOneXIco.png"
                   alt="ProductOneX"
-                  className="w-12 h-12 rounded-xl object-contain bg-white p-1 shadow-medium border border-gray-200"
+                  className="w-10 h-10 rounded-xl object-contain bg-white p-1 shadow-medium border border-gray-200"
                 />
                 <div>
-                  <h1 className="text-xl font-bold text-gray-900">ProductOneX</h1>
+                  <h1 className="text-lg font-bold text-gray-900">ProductOneX</h1>
                   <p className="text-xs text-gray-500">Sistema de Gestión</p>
                 </div>
               </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setIsMobileMenuOpen(false)}
-                className="p-2 hover:bg-gray-100 rounded-lg"
-              >
-                <X className="w-5 h-5 text-gray-600" />
-              </Button>
             </div>
           </div>
 
@@ -171,8 +147,8 @@ export function Sidebar({ onCollapseChange, isCollapsed }) {
           </div>
 
           {/* Menu Items móvil */}
-          <nav className="mt-6 flex-1 overflow-y-auto px-3 pb-6">
-            <div className="space-y-2">
+          <nav className="mt-4 flex-1 overflow-y-auto px-4 pb-6">
+            <div className="space-y-1">
               {menuItems.map((item) => {
                 const IconComponent = item.icon;
                 const isActive = activeTab === item.id;
@@ -184,14 +160,18 @@ export function Sidebar({ onCollapseChange, isCollapsed }) {
                   <div key={item.id} className="relative">
                     <button
                       onClick={() => handleMenuClick(item)}
-                      className={`w-full sidebar-item ${
-                        isActive || hasActiveSubmenu ? 'active' : ''
-                      } group`}
+                      className={`w-full flex items-center px-4 py-3 text-left rounded-xl transition-all duration-200 group ${
+                        isActive || hasActiveSubmenu 
+                          ? 'bg-blue-100 text-blue-700 shadow-sm' 
+                          : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
+                      }`}
                     >
-                      <IconComponent className="w-5 h-5 mr-3 flex-shrink-0 group-hover:scale-110 transition-transform duration-200" />
+                      <IconComponent className={`w-5 h-5 mr-3 flex-shrink-0 transition-transform duration-200 ${
+                        isActive || hasActiveSubmenu ? 'text-blue-600' : 'text-gray-500 group-hover:text-gray-700'
+                      }`} />
                       <div className="flex-1 text-left">
-                        <span className="font-medium">{item.label}</span>
-                        <p className="text-xs text-gray-500 mt-0.5">{item.description}</p>
+                        <span className="font-medium text-sm">{item.label}</span>
+                        <p className="text-xs text-gray-500 mt-0.5 line-clamp-1">{item.description}</p>
                       </div>
                       {item.hasSubmenu && (
                         <div className="ml-2">

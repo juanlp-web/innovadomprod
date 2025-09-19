@@ -1,7 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { useProfile } from '@/hooks/useProfile';
+import { useAuth } from '@/contexts/AuthContext';
+import { useMobile } from '@/hooks/useMobile';
 import { toast } from 'react-hot-toast';
+import { LogOut, User, Settings, Shield, Bell } from 'lucide-react';
 
 export function PerfilPage() {
   const { 
@@ -13,6 +16,9 @@ export function PerfilPage() {
     updateNotifications,
     updateTheme
   } = useProfile();
+  
+  const { logout, user } = useAuth();
+  const { isMobile } = useMobile();
 
   const [isEditing, setIsEditing] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
@@ -103,6 +109,12 @@ export function PerfilPage() {
     await updateTheme({ darkMode });
   };
 
+  const handleLogout = () => {
+    if (window.confirm('¿Estás seguro de que quieres cerrar sesión?')) {
+      logout();
+    }
+  };
+
   // Formatear fecha
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
@@ -139,17 +151,25 @@ export function PerfilPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+      <div className={`flex ${isMobile ? 'flex-col space-y-4' : 'flex-row lg:items-center lg:justify-between gap-4'}`}>
         <div className="flex-1">
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Perfil de Usuario</h1>
-          <p className="text-gray-600 text-sm sm:text-base">Gestiona tu información personal y configuración</p>
+          <h1 className={`font-bold text-gray-900 ${isMobile ? 'text-xl' : 'text-2xl sm:text-3xl'}`}>Perfil de Usuario</h1>
+          <p className={`text-gray-600 ${isMobile ? 'text-sm' : 'text-sm sm:text-base'}`}>Gestiona tu información personal y configuración</p>
         </div>
-        <div className="flex-shrink-0">
+        <div className={`flex-shrink-0 ${isMobile ? 'flex flex-col space-y-2' : 'flex space-x-2'}`}>
           <Button 
-            className="bg-purple-600 hover:bg-purple-700 w-full lg:w-auto"
+            className={`bg-purple-600 hover:bg-purple-700 ${isMobile ? 'w-full text-sm py-2' : 'w-full lg:w-auto'}`}
             onClick={() => setIsEditing(!isEditing)}
           >
             {isEditing ? '❌ Cancelar' : '✏️ Editar Perfil'}
+          </Button>
+          <Button 
+            variant="outline"
+            className={`border-red-300 text-red-600 hover:bg-red-50 hover:border-red-400 ${isMobile ? 'w-full text-sm py-2' : 'w-full lg:w-auto'}`}
+            onClick={handleLogout}
+          >
+            <LogOut className={`${isMobile ? 'w-4 h-4 mr-1' : 'w-4 h-4 mr-2'}`} />
+            Cerrar Sesión
           </Button>
         </div>
       </div>
@@ -161,29 +181,29 @@ export function PerfilPage() {
           <div className="bg-white shadow rounded-lg border border-gray-200 p-4 sm:p-6">
             <div className="text-center">
               <div className="mx-auto h-20 w-20 sm:h-24 sm:w-24 bg-gradient-to-r from-pink-400 to-purple-600 rounded-full flex items-center justify-center mb-4">
-                <span className="text-white text-2xl sm:text-3xl font-bold">
-                  {profile?.username?.charAt(0).toUpperCase() || 'U'}
-                </span>
+                <User className="text-white w-8 h-8 sm:w-10 sm:h-10" />
               </div>
-              <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-2">
-                {profile?.username || 'Usuario'}
+              <h2 className={`font-semibold text-gray-900 mb-2 ${isMobile ? 'text-lg' : 'text-lg sm:text-xl'}`}>
+                {profile?.username || user?.name || 'Usuario'}
               </h2>
-              <p className="text-gray-600 mb-4 text-sm sm:text-base">
-                {profile?.role === 'admin' ? 'Administrador' : 
-                 profile?.role === 'manager' ? 'Gerente' : 'Usuario'}
-              </p>
-              <div className="space-y-2 text-xs sm:text-sm text-gray-600">
+              <div className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium mb-4 bg-purple-100 text-purple-800">
+                {profile?.role === 'admin' ? '👑 Administrador' : 
+                 profile?.role === 'manager' ? '👔 Gerente' : '👤 Usuario'}
+              </div>
+              <div className="space-y-3 text-xs sm:text-sm text-gray-600">
                 <div className="flex items-center justify-center">
                   <span className="mr-2">📧</span>
-                  {profile?.email || 'usuario@example.com'}
+                  <span className="truncate">{profile?.email || user?.email || 'usuario@example.com'}</span>
                 </div>
-                <div className="flex items-center justify-center">
-                  <span className="mr-2">👤</span>
-                  ID: {profile?._id || 'N/A'}
-                </div>
+                {profile?._id && (
+                  <div className="flex items-center justify-center">
+                    <span className="mr-2">🆔</span>
+                    <span className="font-mono text-xs">{profile._id.substring(0, 8)}...</span>
+                  </div>
+                )}
                 <div className="flex items-center justify-center">
                   <span className="mr-2">📅</span>
-                  Miembro desde: {formatDate(profile?.createdAt)}
+                  <span>Miembro desde: {formatDate(profile?.createdAt)}</span>
                 </div>
               </div>
             </div>
@@ -197,7 +217,7 @@ export function PerfilPage() {
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Información Personal</h3>
             {isEditing ? (
               <form onSubmit={handleProfileSubmit} className="space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className={`grid gap-4 ${isMobile ? 'grid-cols-1' : 'grid-cols-1 sm:grid-cols-2'}`}>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
                     <input
@@ -249,21 +269,22 @@ export function PerfilPage() {
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                   />
                 </div>
-                <div className="flex space-x-3">
-                  <Button type="submit" className="bg-purple-600 hover:bg-purple-700">
+                <div className={`flex ${isMobile ? 'flex-col space-y-3' : 'space-x-3'}`}>
+                  <Button type="submit" className={`bg-purple-600 hover:bg-purple-700 ${isMobile ? 'w-full' : ''}`}>
                     💾 Guardar Cambios
                   </Button>
                   <Button 
                     type="button" 
                     variant="outline"
                     onClick={() => setIsEditing(false)}
+                    className={isMobile ? 'w-full' : ''}
                   >
                     ❌ Cancelar
                   </Button>
                 </div>
               </form>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className={`grid gap-4 ${isMobile ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2'}`}>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Nombre Completo</label>
                   <input
@@ -305,13 +326,19 @@ export function PerfilPage() {
           </div>
 
           {/* Configuración de cuenta */}
-          <div className="bg-white shadow rounded-lg border border-gray-200 p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Configuración de Cuenta</h3>
+          <div className="bg-white shadow rounded-lg border border-gray-200 p-4 sm:p-6">
+            <div className="flex items-center mb-4">
+              <Settings className="w-5 h-5 text-purple-600 mr-2" />
+              <h3 className={`font-semibold text-gray-900 ${isMobile ? 'text-lg' : 'text-lg'}`}>Configuración de Cuenta</h3>
+            </div>
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <div>
-                  <h4 className="font-medium text-gray-900">Notificaciones por Email</h4>
-                  <p className="text-sm text-gray-600">Recibir notificaciones importantes por correo</p>
+                <div className="flex items-center">
+                  <Bell className="w-4 h-4 text-blue-500 mr-3" />
+                  <div>
+                    <h4 className="font-medium text-gray-900">Notificaciones por Email</h4>
+                    <p className="text-sm text-gray-600">Recibir notificaciones importantes por correo</p>
+                  </div>
                 </div>
                 <label className="relative inline-flex items-center cursor-pointer">
                   <input 
@@ -324,9 +351,12 @@ export function PerfilPage() {
                 </label>
               </div>
               <div className="flex items-center justify-between">
-                <div>
-                  <h4 className="font-medium text-gray-900">Notificaciones Push</h4>
-                  <p className="text-sm text-gray-600">Recibir notificaciones en tiempo real</p>
+                <div className="flex items-center">
+                  <Bell className="w-4 h-4 text-green-500 mr-3" />
+                  <div>
+                    <h4 className="font-medium text-gray-900">Notificaciones Push</h4>
+                    <p className="text-sm text-gray-600">Recibir notificaciones en tiempo real</p>
+                  </div>
                 </div>
                 <label className="relative inline-flex items-center cursor-pointer">
                   <input 
@@ -339,9 +369,12 @@ export function PerfilPage() {
                 </label>
               </div>
               <div className="flex items-center justify-between">
-                <div>
-                  <h4 className="font-medium text-gray-900">Modo Oscuro</h4>
-                  <p className="text-sm text-gray-600">Cambiar a tema oscuro</p>
+                <div className="flex items-center">
+                  <Settings className="w-4 h-4 text-gray-500 mr-3" />
+                  <div>
+                    <h4 className="font-medium text-gray-900">Modo Oscuro</h4>
+                    <p className="text-sm text-gray-600">Cambiar a tema oscuro</p>
+                  </div>
                 </div>
                 <label className="relative inline-flex items-center cursor-pointer">
                   <input 
@@ -359,15 +392,19 @@ export function PerfilPage() {
       </div>
 
       {/* Acciones de seguridad */}
-      <div className="bg-white shadow rounded-lg border border-gray-200 p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Seguridad</h3>
+      <div className="bg-white shadow rounded-lg border border-gray-200 p-4 sm:p-6">
+        <div className="flex items-center mb-4">
+          <Shield className="w-5 h-5 text-red-600 mr-2" />
+          <h3 className={`font-semibold text-gray-900 ${isMobile ? 'text-lg' : 'text-lg'}`}>Seguridad</h3>
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Button 
             variant="outline" 
-            className="justify-start"
+            className="justify-start border-orange-300 text-orange-600 hover:bg-orange-50 hover:border-orange-400"
             onClick={() => setIsChangingPassword(!isChangingPassword)}
           >
-            🔒 Cambiar Contraseña
+            <Shield className="w-4 h-4 mr-2" />
+            Cambiar Contraseña
           </Button>
         </div>
 
@@ -409,14 +446,15 @@ export function PerfilPage() {
                   required
                 />
               </div>
-              <div className="flex space-x-3">
-                <Button type="submit" className="bg-purple-600 hover:bg-purple-700">
+              <div className={`flex ${isMobile ? 'flex-col space-y-3' : 'space-x-3'}`}>
+                <Button type="submit" className={`bg-purple-600 hover:bg-purple-700 ${isMobile ? 'w-full' : ''}`}>
                   🔒 Cambiar Contraseña
                 </Button>
                 <Button 
                   type="button" 
                   variant="outline"
                   onClick={() => setIsChangingPassword(false)}
+                  className={isMobile ? 'w-full' : ''}
                 >
                   ❌ Cancelar
                 </Button>

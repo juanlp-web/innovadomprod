@@ -1,6 +1,7 @@
 import { AlertTriangle, CheckCircle, XCircle, Info } from 'lucide-react'
 import { Button } from './button'
 import { useState } from 'react'
+import { useMobile } from '@/hooks/useMobile'
 
 const modalTypes = {
   success: {
@@ -41,6 +42,8 @@ export function ConfirmationModal({
   showCancel = true,
   confirmButtonVariant = 'default'
 }) {
+  const { isMobile } = useMobile()
+  
   if (!isOpen) return null
 
   const modalStyle = modalTypes[type] || modalTypes.info
@@ -56,28 +59,30 @@ export function ConfirmationModal({
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 transform transition-all">
+    <div className={`fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 ${isMobile ? 'p-4' : ''}`}>
+      <div className={`bg-white shadow-xl w-full transform transition-all ${
+        isMobile ? 'rounded-xl max-w-sm' : 'rounded-lg max-w-md mx-4'
+      }`}>
         {/* Header */}
-        <div className={`${modalStyle.bgColor} ${modalStyle.borderColor} border-b px-6 py-4 rounded-t-lg`}>
+        <div className={`${modalStyle.bgColor} ${modalStyle.borderColor} border-b ${isMobile ? 'px-4 py-3' : 'px-6 py-4'} rounded-t-lg`}>
           <div className="flex items-center space-x-3">
-            <Icon className={`w-6 h-6 ${modalStyle.iconColor}`} />
-            <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
+            <Icon className={`${isMobile ? 'w-5 h-5' : 'w-6 h-6'} ${modalStyle.iconColor}`} />
+            <h3 className={`font-semibold text-gray-900 ${isMobile ? 'text-base' : 'text-lg'}`}>{title}</h3>
           </div>
         </div>
 
         {/* Content */}
-        <div className="px-6 py-4">
-          <div className="text-gray-700 whitespace-pre-line">{message}</div>
+        <div className={`${isMobile ? 'px-4 py-3' : 'px-6 py-4'}`}>
+          <div className={`text-gray-700 whitespace-pre-line ${isMobile ? 'text-sm' : ''}`}>{message}</div>
         </div>
 
         {/* Actions */}
-        <div className="px-6 py-4 bg-gray-50 rounded-b-lg flex justify-end space-x-3">
+        <div className={`${isMobile ? 'px-4 py-3' : 'px-6 py-4'} bg-gray-50 rounded-b-lg flex ${isMobile ? 'flex-col space-y-2' : 'justify-end space-x-3'}`}>
           {showCancel && (
             <Button
               variant="outline"
               onClick={handleCancel}
-              className="btn-secondary"
+              className={`btn-secondary ${isMobile ? 'w-full' : ''}`}
             >
               {cancelText}
             </Button>
@@ -85,7 +90,7 @@ export function ConfirmationModal({
           <Button
             variant={confirmButtonVariant}
             onClick={handleConfirm}
-            className={type === 'error' ? 'bg-red-600 hover:bg-red-700' : ''}
+            className={`${type === 'error' ? 'bg-red-600 hover:bg-red-700' : ''} ${isMobile ? 'w-full' : ''}`}
           >
             {confirmText}
           </Button>
