@@ -29,7 +29,6 @@ export const useRecipes = () => {
       setCurrentPage(response.data.currentPage);
       setTotal(response.data.total);
     } catch (err) {
-      console.error('Error al obtener recetas:', err);
       setError(err.response?.data?.message || 'Error al obtener recetas');
     } finally {
       setLoading(false);
@@ -45,7 +44,6 @@ export const useRecipes = () => {
       const response = await recipesAPI.getById(id);
       return response.data;
     } catch (err) {
-      console.error('Error al obtener receta:', err);
       setError(err.response?.data?.message || 'Error al obtener receta');
       throw err;
     } finally {
@@ -64,7 +62,6 @@ export const useRecipes = () => {
       setTotal(prev => prev + 1);
       return response.data;
     } catch (err) {
-      console.error('Error al crear receta:', err);
       setError(err.response?.data?.message || 'Error al crear receta');
       throw err;
     } finally {
@@ -84,7 +81,6 @@ export const useRecipes = () => {
       ));
       return response.data;
     } catch (err) {
-      console.error('Error al actualizar receta:', err);
       setError(err.response?.data?.message || 'Error al actualizar receta');
       throw err;
     } finally {
@@ -104,7 +100,6 @@ export const useRecipes = () => {
       ));
       return response.data;
     } catch (err) {
-      console.error('Error al actualizar estado de receta:', err);
       setError(err.response?.data?.message || 'Error al actualizar estado de receta');
       throw err;
     } finally {
@@ -152,7 +147,6 @@ export const useRecipes = () => {
       setTotal(prev => prev + 1);
       return response.data;
     } catch (err) {
-      console.error('Error al duplicar receta:', err);
       setError(err.response?.data?.message || 'Error al duplicar receta');
       throw err;
     } finally {
@@ -170,7 +164,6 @@ export const useRecipes = () => {
       setRecipes(prev => prev.filter(recipe => recipe._id !== id));
       setTotal(prev => prev - 1);
     } catch (err) {
-      console.error('Error al eliminar receta:', err);
       setError(err.response?.data?.message || 'Error al eliminar receta');
       throw err;
     } finally {
@@ -186,7 +179,6 @@ export const useRecipes = () => {
       const response = await recipesAPI.getCost(id);
       return response.data;
     } catch (err) {
-      console.error('Error al calcular costo:', err);
       setError(err.response?.data?.message || 'Error al calcular costo');
       throw err;
     }

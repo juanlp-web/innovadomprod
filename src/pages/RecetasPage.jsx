@@ -454,7 +454,6 @@ export function RecetasPage() {
       });
       setShowForm(false);
     } catch (error) {
-      console.error("Error al guardar receta:", error);
       showError("Error al guardar la receta");
     }
   };
@@ -597,7 +596,6 @@ export function RecetasPage() {
         await deleteRecipe(recipeId);
         success("Receta eliminada exitosamente");
       } catch (error) {
-        console.error("Error al eliminar receta:", error);
         showError("Error al eliminar la receta");
       }
     }
@@ -729,7 +727,6 @@ export function RecetasPage() {
         );
       }
     } catch (error) {
-      console.error("Error al cambiar estado de receta:", error);
       showError("Error al cambiar el estado de la receta");
     }
   };
@@ -754,7 +751,6 @@ export function RecetasPage() {
           `Receta duplicada exitosamente!\n\nNueva receta: "${duplicatedRecipe.name}"\nEstado: En Preparación\n\nLa receta duplicada aparece al inicio de la lista.`
         );
       } catch (error) {
-        console.error("Error al duplicar receta:", error);
         showError("Error al duplicar la receta");
       } finally {
         setDuplicatingRecipeId(null);

@@ -47,7 +47,6 @@ export const useSuppliers = () => {
         throw new Error(response.data.message || 'Error al cargar proveedores');
       }
     } catch (err) {
-      console.error('Error al cargar proveedores:', err);
       setError(err.message || 'Error al cargar proveedores');
       setSuppliers([]);
     } finally {
@@ -63,7 +62,6 @@ export const useSuppliers = () => {
         setStats(response.data.data);
       }
     } catch (err) {
-      console.error('Error al cargar estadísticas:', err);
     }
   }, []);
 
@@ -84,7 +82,6 @@ export const useSuppliers = () => {
         throw new Error(response.data.message || 'Error al crear proveedor');
       }
     } catch (err) {
-      console.error('Error al crear proveedor:', err);
       setError(err.message || 'Error al crear proveedor');
       return { success: false, error: err.message };
     } finally {
@@ -112,7 +109,6 @@ export const useSuppliers = () => {
         throw new Error(response.data.message || 'Error al actualizar proveedor');
       }
     } catch (err) {
-      console.error('Error al actualizar proveedor:', err);
       setError(err.message || 'Error al actualizar proveedor');
       return { success: false, error: err.message };
     } finally {
@@ -138,7 +134,6 @@ export const useSuppliers = () => {
         throw new Error(response.data.message || 'Error al eliminar proveedor');
       }
     } catch (err) {
-      console.error('Error al eliminar proveedor:', err);
       setError(err.message || 'Error al eliminar proveedor');
       return { success: false, error: err.message };
     } finally {
@@ -167,7 +162,6 @@ export const useSuppliers = () => {
         throw new Error(response.data.message || 'Error al cambiar estado');
       }
     } catch (err) {
-      console.error('Error al cambiar estado del proveedor:', err);
       setError(err.message || 'Error al cambiar estado');
       return { success: false, error: err.message };
     }
@@ -189,7 +183,6 @@ export const useSuppliers = () => {
         throw new Error(response.data.message || 'Error en la búsqueda');
       }
     } catch (err) {
-      console.error('Error en la búsqueda:', err);
       setError(err.message || 'Error en la búsqueda');
       setSuppliers([]);
     } finally {

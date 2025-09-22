@@ -16,7 +16,6 @@ export const usePackages = () => {
       const response = await packagesAPI.getAll(params);
       setPackages(response.data.packages || response.data);
     } catch (err) {
-      console.error('Error al obtener paquetes:', err);
       setError(err.response?.data?.message || 'Error al obtener los paquetes');
     } finally {
       setLoading(false);
@@ -31,7 +30,6 @@ export const usePackages = () => {
       const response = await packagesAPI.getById(id);
       return response.data;
     } catch (err) {
-      console.error('Error al obtener paquete:', err);
       setError(err.response?.data?.message || 'Error al obtener el paquete');
       return null;
     } finally {
@@ -48,7 +46,6 @@ export const usePackages = () => {
       setPackages(prev => [response.data, ...prev]);
       return response.data;
     } catch (err) {
-      console.error('Error al crear paquete:', err);
       setError(err.response?.data?.message || 'Error al crear el paquete');
       throw err;
     } finally {
@@ -67,7 +64,6 @@ export const usePackages = () => {
       ));
       return response.data;
     } catch (err) {
-      console.error('Error al actualizar paquete:', err);
       setError(err.response?.data?.message || 'Error al actualizar el paquete');
       throw err;
     } finally {
@@ -84,7 +80,6 @@ export const usePackages = () => {
       setPackages(prev => prev.filter(pkg => pkg._id !== id));
       return true;
     } catch (err) {
-      console.error('Error al eliminar paquete:', err);
       setError(err.response?.data?.message || 'Error al eliminar el paquete');
       throw err;
     } finally {
@@ -101,7 +96,6 @@ export const usePackages = () => {
       setAvailablePackages(response.data.packages || response.data);
       return response.data.packages || response.data;
     } catch (err) {
-      console.error('Error al obtener paquetes disponibles:', err);
       setError(err.response?.data?.message || 'Error al obtener paquetes disponibles');
       return [];
     } finally {
@@ -118,7 +112,6 @@ export const usePackages = () => {
       setStats(response.data);
       return response.data;
     } catch (err) {
-      console.error('Error al obtener estadísticas:', err);
       setError(err.response?.data?.message || 'Error al obtener las estadísticas');
       return null;
     } finally {
@@ -134,7 +127,6 @@ export const usePackages = () => {
       const response = await packagesAPI.checkStock(id);
       return response.data;
     } catch (err) {
-      console.error('Error al verificar stock:', err);
       setError(err.response?.data?.message || 'Error al verificar disponibilidad de stock');
       return null;
     } finally {

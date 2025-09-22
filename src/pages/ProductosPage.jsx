@@ -12,10 +12,14 @@ import {
   CheckCircle,
   XCircle,
   Loader2,
-  Package2
+  Package2,
+  Upload,
+  Download
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useProducts } from '@/hooks/useProducts'
+import { useImport } from '@/hooks/useImport'
+import { ImportModal } from '@/components/ImportModal'
 
 export function ProductosPage() {
   const [showForm, setShowForm] = useState(false)
@@ -35,6 +39,15 @@ export function ProductosPage() {
     deleteProduct,
     clearError
   } = useProducts()
+
+  // Hook para importación
+  const {
+    loading: importLoading,
+    importModalOpen,
+    openImportModal,
+    closeImportModal,
+    importData
+  } = useImport('products')
 
   const [formData, setFormData] = useState({
     name: '',
@@ -58,6 +71,54 @@ export function ProductosPage() {
     { value: 'metro', label: 'Metro' },
     { value: 'cm', label: 'Centímetros (cm)' }
   ]
+
+  // Configuración para importación
+  const importConfig = {
+    title: "Importar Productos",
+    description: "Importa productos desde un archivo CSV o Excel",
+    sampleData: [
+      {
+        name: "Harina de Trigo",
+        unit: "kg",
+        category: "materia_prima",
+        minStock: "10",
+        description: "Harina de trigo para panadería",
+        price: "2.50",
+        cost: "1.80",
+        managesBatches: "true"
+      },
+      {
+        name: "Pan Integral",
+        unit: "unidad",
+        category: "producto_terminado",
+        minStock: "50",
+        description: "Pan integral artesanal",
+        price: "3.00",
+        cost: "1.50",
+        managesBatches: "false"
+      },
+      {
+        name: "Caja de Empaque",
+        unit: "caja",
+        category: "empaque",
+        minStock: "20",
+        description: "Caja para empaque de productos",
+        price: "0.50",
+        cost: "0.30",
+        managesBatches: "false"
+      }
+    ],
+    columns: [
+      { key: 'name', header: 'Nombre', required: true },
+      { key: 'unit', header: 'Unidad (kg/g/l/ml/unidad/docena/caja/metro/cm)', required: true },
+      { key: 'category', header: 'Categoría (materia_prima/producto_terminado/empaque/servicio)', required: true },
+      { key: 'minStock', header: 'Stock Mínimo', required: false },
+      { key: 'description', header: 'Descripción', required: false },
+      { key: 'price', header: 'Precio', required: true },
+      { key: 'cost', header: 'Costo', required: false },
+      { key: 'managesBatches', header: 'Maneja Lotes (true/false)', required: false }
+    ]
+  }
 
   const inventoryTypes = [
     { value: 'materia_prima', label: 'Materia Prima', icon: Leaf, color: 'text-green-600' },
@@ -113,7 +174,6 @@ export function ProductosPage() {
         }
       }
     } catch (error) {
-      console.error('Error en el formulario:', error)
     }
   }
 
@@ -197,7 +257,16 @@ export function ProductosPage() {
           <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 mb-2">Gestión de Productos</h1>
           <p className="text-gray-600 text-sm sm:text-base">Administra el catálogo de productos, materias primas y envases</p>
         </div>
-        <div className="flex-shrink-0">
+        <div className="flex-shrink-0 flex flex-col sm:flex-row gap-2">
+          <Button 
+            onClick={openImportModal}
+            variant="outline"
+            className="w-full lg:w-auto flex items-center justify-center space-x-2 shadow-medium hover:shadow-strong transform hover:-translate-y-1 transition-all duration-300"
+          >
+            <Upload className="w-5 h-5" />
+            <span className="hidden sm:inline">Importar</span>
+            <span className="sm:hidden">Importar</span>
+          </Button>
           <Button 
             onClick={() => setShowForm(true)}
             className="w-full lg:w-auto btn-primary flex items-center justify-center space-x-2 shadow-medium hover:shadow-strong transform hover:-translate-y-1 transition-all duration-300"
@@ -686,6 +755,18 @@ export function ProductosPage() {
           </>
         )}
       </div>
+
+      {/* Modal de Importación */}
+      <ImportModal
+        isOpen={importModalOpen}
+        onClose={closeImportModal}
+        onImport={importData}
+        title={importConfig.title}
+        description={importConfig.description}
+        sampleData={importConfig.sampleData}
+        columns={importConfig.columns}
+        loading={importLoading}
+      />
     </div>
   )
 }

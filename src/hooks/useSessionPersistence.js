@@ -25,7 +25,6 @@ export const useSessionPersistence = () => {
             (now - parseInt(lastActivity)) > 30 * 60 * 1000 &&
             (now - lastRefreshAttempt.current) > 5 * 60 * 1000) {
           
-          console.log('Intentando refrescar sesión por inactividad');
           isRefreshing.current = true;
           lastRefreshAttempt.current = now;
           
@@ -48,7 +47,6 @@ export const useSessionPersistence = () => {
             (now - parseInt(lastActivity)) > 15 * 60 * 1000 &&
             (now - lastRefreshAttempt.current) > 2 * 60 * 1000) {
           
-          console.log('Intentando refrescar sesión por cambio de visibilidad');
           isRefreshing.current = true;
           lastRefreshAttempt.current = now;
           

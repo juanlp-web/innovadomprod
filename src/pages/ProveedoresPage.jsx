@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { useSuppliers } from '@/hooks/useSuppliers';
-import { Search, Plus, Filter, Eye, Edit, History, Trash2, AlertCircle, X, Save, User, Phone, Mail, MapPin, Tag, FileText, Building2, UserCheck, UserX, Clock } from 'lucide-react';
+import { Search, Plus, Filter, Eye, Edit, History, Trash2, AlertCircle, X, Save, User, Phone, Mail, MapPin, Tag, FileText, Building2, UserCheck, UserX, Clock, Upload } from 'lucide-react';
+import { useImport } from '@/hooks/useImport';
+import { ImportModal } from '@/components/ImportModal';
 
 export function ProveedoresPage() {
   const {
@@ -28,6 +30,52 @@ export function ProveedoresPage() {
   const [showViewSupplierModal, setShowViewSupplierModal] = useState(false);
   const [showEditSupplierModal, setShowEditSupplierModal] = useState(false);
   const [selectedSupplier, setSelectedSupplier] = useState(null);
+  
+  // Hook para importación
+  const {
+    loading: importLoading,
+    importModalOpen,
+    openImportModal,
+    closeImportModal,
+    importData
+  } = useImport('suppliers');
+
+  // Configuración para importación
+  const importConfig = {
+    title: "Importar Proveedores",
+    description: "Importa proveedores desde un archivo CSV o Excel",
+    sampleData: [
+      {
+        name: "Proveedor ABC",
+        email: "contacto@proveedorabc.com",
+        phone: "555-0123",
+        address: "Calle Industrial 123",
+        status: "Activo"
+      },
+      {
+        name: "Distribuidora XYZ",
+        email: "ventas@distribuidoraxyz.com",
+        phone: "555-0456",
+        address: "Av. Comercial 456",
+        status: "Activo"
+      },
+      {
+        name: "Proveedor Inactivo",
+        email: "inactivo@proveedor.com",
+        phone: "555-0999",
+        address: "Calle Inactiva 999",
+        status: "Inactivo"
+      }
+    ],
+    columns: [
+      { key: 'name', header: 'nombre', required: true },
+      { key: 'email', header: 'correo', required: false },
+      { key: 'phone', header: 'telefono', required: false },
+      { key: 'address', header: 'direccion', required: false },
+      { key: 'status', header: 'estado', required: false }
+    ]
+  };
+
   const [newSupplierForm, setNewSupplierForm] = useState({
     name: '',
     address: '',
@@ -158,7 +206,6 @@ export function ProveedoresPage() {
         setShowNewSupplierModal(false);
       }
     } catch (error) {
-      console.error('Error al crear proveedor:', error);
     } finally {
       setIsSubmitting(false);
     }
@@ -265,7 +312,6 @@ export function ProveedoresPage() {
         fetchSuppliers(); // Recargar la lista
       }
     } catch (error) {
-      console.error('Error al actualizar proveedor:', error);
     } finally {
       setIsSubmitting(false);
     }
@@ -331,7 +377,16 @@ export function ProveedoresPage() {
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Gestión de Proveedores</h1>
           <p className="text-gray-600 text-sm sm:text-base">Administra la base de datos de proveedores</p>
         </div>
-        <div className="flex-shrink-0">
+        <div className="flex-shrink-0 flex flex-col sm:flex-row gap-2">
+          <Button 
+            onClick={openImportModal}
+            variant="outline"
+            className="w-full sm:w-auto flex items-center justify-center space-x-2 shadow-medium hover:shadow-strong transform hover:-translate-y-1 transition-all duration-300"
+          >
+            <Upload className="w-5 h-5" />
+            <span className="hidden sm:inline">Importar</span>
+            <span className="sm:hidden">Importar</span>
+          </Button>
           <Button 
             onClick={() => setShowNewSupplierModal(true)}
             className={`btn-primary flex items-center justify-center space-x-2 shadow-medium hover:shadow-strong transform hover:-translate-y-1 transition-all duration-300 w-full lg:w-auto`}
@@ -1176,6 +1231,18 @@ export function ProveedoresPage() {
            </div>
          </div>
        )}
+
+       {/* Modal de Importación */}
+       <ImportModal
+         isOpen={importModalOpen}
+         onClose={closeImportModal}
+         onImport={importData}
+         title={importConfig.title}
+         description={importConfig.description}
+         sampleData={importConfig.sampleData}
+         columns={importConfig.columns}
+         loading={importLoading}
+       />
      </div>
    );
  }

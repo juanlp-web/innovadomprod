@@ -14,6 +14,9 @@ export const ROUTES = {
   CLIENTES: '/dashboard/clientes',
   PROVEEDORES: '/dashboard/proveedores',
   LOTES: '/dashboard/lotes',
+  BANCOS: '/dashboard/bancos',
+  CATALOGO_CUENTAS: '/dashboard/catalogo-cuentas',
+  ADMIN: '/dashboard/admin',
   PERFIL: '/dashboard/perfil'
 }
 

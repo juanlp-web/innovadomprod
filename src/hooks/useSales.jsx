@@ -16,7 +16,6 @@ export const useSales = () => {
       const response = await salesAPI.getAll(params);
       setSales(response.data.sales || response.data);
     } catch (err) {
-      console.error('Error al obtener ventas:', err);
       setError(err.response?.data?.message || 'Error al obtener las ventas');
     } finally {
       setLoading(false);
@@ -31,7 +30,6 @@ export const useSales = () => {
       const response = await salesAPI.getById(id);
       return response.data;
     } catch (err) {
-      console.error('Error al obtener venta:', err);
       setError(err.response?.data?.message || 'Error al obtener la venta');
       return null;
     } finally {
@@ -48,7 +46,6 @@ export const useSales = () => {
       setSales(prev => [response.data, ...prev]);
       return response.data;
     } catch (err) {
-      console.error('Error al crear venta:', err);
       setError(err.response?.data?.message || 'Error al crear la venta');
       throw err;
     } finally {
@@ -67,7 +64,6 @@ export const useSales = () => {
       ));
       return response.data;
     } catch (err) {
-      console.error('Error al actualizar estado de pago:', err);
       setError(err.response?.data?.message || 'Error al actualizar el estado de pago');
       throw err;
     } finally {
@@ -84,7 +80,6 @@ export const useSales = () => {
       setStats(response.data);
       return response.data;
     } catch (err) {
-      console.error('Error al obtener estadísticas:', err);
       setError(err.response?.data?.message || 'Error al obtener las estadísticas');
       return null;
     } finally {
@@ -102,7 +97,6 @@ export const useSales = () => {
       setSales(prev => prev.filter(sale => sale._id !== id));
       return true;
     } catch (err) {
-      console.error('Error al eliminar venta:', err);
       setError(err.response?.data?.message || 'Error al eliminar la venta');
       throw err;
     } finally {
@@ -115,26 +109,74 @@ export const useSales = () => {
     try {
       setLoading(true);
       setError(null);
-      console.log('Fetching available packages...');
-      console.log('salesAPI:', salesAPI);
-      console.log('getAvailablePackages function:', salesAPI.getAvailablePackages);
       
       if (typeof salesAPI.getAvailablePackages !== 'function') {
         throw new Error('getAvailablePackages is not a function');
       }
       
       const response = await salesAPI.getAvailablePackages();
-      console.log('Available packages response:', response.data);
       setAvailablePackages(response.data);
       return response.data;
     } catch (err) {
-      console.error('Error al obtener paquetes disponibles:', err);
       setError(err.response?.data?.message || 'Error al obtener paquetes disponibles');
       return [];
     } finally {
       setLoading(false);
     }
   }, []);
+
+  // Agregar pago parcial a una venta
+  const addPayment = useCallback(async (saleId, paymentData) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await salesAPI.addPayment(saleId, paymentData);
+      
+      // Recargar todas las ventas para asegurar datos actualizados
+      await fetchSales();
+      
+      return response.data;
+    } catch (err) {
+      setError(err.response?.data?.message || 'Error al agregar pago parcial');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, [fetchSales]);
+
+  // Obtener pagos parciales de una venta
+  const getPayments = useCallback(async (saleId) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await salesAPI.getPayments(saleId);
+      return response.data;
+    } catch (err) {
+      setError(err.response?.data?.message || 'Error al obtener pagos');
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // Eliminar un pago parcial
+  const deletePayment = useCallback(async (saleId, paymentId) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await salesAPI.deletePayment(saleId, paymentId);
+      
+      // Recargar todas las ventas para asegurar datos actualizados
+      await fetchSales();
+      
+      return response.data;
+    } catch (err) {
+      setError(err.response?.data?.message || 'Error al eliminar pago');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, [fetchSales]);
 
   // Limpiar error
   const clearError = useCallback(() => {
@@ -159,6 +201,9 @@ export const useSales = () => {
     fetchStats,
     deleteSale,
     fetchAvailablePackages,
+    addPayment,
+    getPayments,
+    deletePayment,
     clearError
   };
 };

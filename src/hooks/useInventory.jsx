@@ -207,7 +207,6 @@ export const useInventory = () => {
       
       return response.data;
     } catch (err) {
-      console.error('Error al crear producto:', err);
       const errorMsg = err.response?.data?.message || 'Error al crear el producto';
       toast.error(errorMsg);
       throw err;
@@ -254,7 +253,6 @@ export const useInventory = () => {
       
       return response.data;
     } catch (err) {
-      console.error('Error al actualizar producto:', err);
       const errorMsg = err.response?.data?.message || 'Error al actualizar el producto';
       toast.error(errorMsg);
       throw err;
@@ -276,7 +274,6 @@ export const useInventory = () => {
       await loadSummary(); // Recargar resumen
       
     } catch (err) {
-      console.error('Error al eliminar producto:', err);
       const errorMsg = err.response?.data?.message || 'Error al eliminar el producto';
       toast.error(errorMsg);
       throw err;
@@ -304,7 +301,6 @@ export const useInventory = () => {
       
       return response.data;
     } catch (err) {
-      console.error('Error al ajustar stock:', err);
       const errorMsg = err.response?.data?.message || 'Error al ajustar el stock';
       toast.error(errorMsg);
       throw err;

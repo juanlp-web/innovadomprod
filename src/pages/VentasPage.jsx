@@ -13,7 +13,9 @@ import {
   XCircle,
   TrendingUp,
   AlertCircle,
-  Package2
+  Package2,
+  Eye,
+  Upload
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useSales } from '@/hooks/useSales'
@@ -22,6 +24,12 @@ import { useProducts } from '@/hooks/useProducts'
 import { useBatches } from '@/hooks/useBatches'
 import { usePackages } from '@/hooks/usePackages'
 import { useConfig } from '@/hooks/useConfig'
+import { useBanks } from '@/hooks/useBanks'
+import { PaymentModal } from '@/components/PaymentModal'
+import { PaymentHistoryModal } from '@/components/PaymentHistoryModal'
+import { PaymentPromptModal } from '@/components/PaymentPromptModal'
+import { useImport } from '@/hooks/useImport'
+import { ImportModal } from '@/components/ImportModal'
 
 export function VentasPage() {
   const { 
@@ -31,6 +39,9 @@ export function VentasPage() {
     createSale, 
     updatePaymentStatus, 
     deleteSale, 
+    addPayment,
+    getPayments,
+    deletePayment,
     clearError 
   } = useSales()
   
@@ -39,6 +50,51 @@ export function VentasPage() {
   const { getActiveBatchesByProduct, loading: batchesLoading } = useBatches()
   const { availablePackages, fetchAvailablePackages, loading: packagesLoading } = useSales()
   const { getConfig } = useConfig()
+  const { banks, loading: banksLoading, fetchBanks } = useBanks()
+  
+  // Hook para importación
+  const {
+    loading: importLoading,
+    importModalOpen,
+    openImportModal,
+    closeImportModal,
+    importData
+  } = useImport('sales');
+
+  // Configuración para importación
+  const importConfig = {
+    title: "Importar Ventas",
+    description: "Importa ventas desde un archivo CSV o Excel",
+    sampleData: [
+      {
+        clientId: "64a1b2c3d4e5f6789012345",
+        productId: "64a1b2c3d4e5f6789012346",
+        quantity: "10",
+        price: "25.50",
+        total: "255.00",
+        date: "2024-01-15",
+        paymentStatus: "pagado"
+      },
+      {
+        clientId: "64a1b2c3d4e5f6789012347",
+        productId: "64a1b2c3d4e5f6789012348",
+        quantity: "5",
+        price: "15.75",
+        total: "78.75",
+        date: "2024-01-16",
+        paymentStatus: "pendiente"
+      }
+    ],
+    columns: [
+      { key: 'clientId', header: 'ID del Cliente', required: true },
+      { key: 'productId', header: 'ID del Producto', required: true },
+      { key: 'quantity', header: 'Cantidad', required: true },
+      { key: 'price', header: 'Precio Unitario', required: true },
+      { key: 'total', header: 'Total', required: true },
+      { key: 'date', header: 'Fecha (YYYY-MM-DD)', required: true },
+      { key: 'paymentStatus', header: 'Estado de Pago (pagado/pendiente/parcial)', required: false }
+    ]
+  };
   
   const [showForm, setShowForm] = useState(false)
   const [editingSale, setEditingSale] = useState(null)
@@ -49,21 +105,26 @@ export function VentasPage() {
   const [availableBatches, setAvailableBatches] = useState({}) // { productId: [batches] }
   const [selectedBatches, setSelectedBatches] = useState({}) // { productId: [{ batchId, quantity }] }
   const [saleMode, setSaleMode] = useState('products') // 'products' o 'packages'
+  const [showPaymentModal, setShowPaymentModal] = useState(false)
+  const [selectedSaleForPayment, setSelectedSaleForPayment] = useState(null)
+  const [salePayments, setSalePayments] = useState({}) // { saleId: { payments, paidAmount, remainingAmount } }
+  const [showPaymentHistoryModal, setShowPaymentHistoryModal] = useState(false)
+  const [selectedSaleForHistory, setSelectedSaleForHistory] = useState(null)
+  const [showPaymentPromptModal, setShowPaymentPromptModal] = useState(false)
+  const [newlyCreatedSale, setNewlyCreatedSale] = useState(null)
 
   // Debug useEffect para lotes
   useEffect(() => {
-    console.log('=== ESTADO ACTUALIZADO ===')
-    console.log('selectedBatches:', selectedBatches)
-    console.log('availableBatches:', availableBatches)
-    console.log('selectedProducts:', selectedProducts)
-    console.log('editingSale:', editingSale)
-    console.log('=== FIN ESTADO ACTUALIZADO ===')
   }, [selectedBatches, availableBatches, selectedProducts, editingSale])
+
+  // Debug useEffect para ventas (temporal)
+  useEffect(() => {
+   
+  }, [sales])
 
   const [formData, setFormData] = useState({
     client: '',
     items: [],
-    paymentMethod: '',
     notes: '',
     dueDate: ''
   })
@@ -75,12 +136,7 @@ export function VentasPage() {
     { value: 'cancelado', label: 'Cancelado', color: 'text-red-600', bgColor: 'bg-red-50' }
   ]
 
-  const paymentMethods = [
-    { value: 'efectivo', label: 'Efectivo' },
-    { value: 'tarjeta', label: 'Tarjeta' },
-    { value: 'transferencia', label: 'Transferencia' },
-    { value: 'cheque', label: 'Cheque' }
-  ]
+  // Los métodos de pago se manejan en el modal de pagos parciales
 
   // Limpiar error cuando se desmonte el componente
   useEffect(() => {
@@ -89,9 +145,7 @@ export function VentasPage() {
 
   // Cargar paquetes disponibles cuando se cambie al modo de paquetes
   useEffect(() => {
-    console.log('useEffect packages - saleMode:', saleMode, 'availablePackages:', availablePackages)
     if (saleMode === 'packages' && (!availablePackages || availablePackages.length === 0)) {
-      console.log('Cargando paquetes disponibles...')
       fetchAvailablePackages()
     }
   }, [saleMode, availablePackages, fetchAvailablePackages])
@@ -131,35 +185,23 @@ export function VentasPage() {
   const loadBatchesForProduct = async (productId) => {
     // Validar que el productId sea válido antes de hacer la llamada
     if (!productId || productId === 'undefined' || productId === '[object Object]' || typeof productId !== 'string') {
-      console.error('=== PRODUCTID INVÁLIDO - OMITIENDO CARGA DE LOTES ===')
-      console.error('ProductId inválido:', productId, 'Tipo:', typeof productId)
       return
     }
 
     try {
-      console.log('=== INICIANDO CARGA DE LOTES ===')
-      console.log('ProductId:', productId, 'Tipo:', typeof productId)
-      console.log('Función getActiveBatchesByProduct:', typeof getActiveBatchesByProduct)
       
       const batches = await getActiveBatchesByProduct(productId)
-      console.log('Lotes obtenidos del backend:', batches)
       
       const activeBatches = batches.filter(batch => batch.currentStock > 0 && batch.status === 'activo')
-      console.log('Lotes activos filtrados:', activeBatches)
       
       setAvailableBatches(prev => {
         const newBatches = {
           ...prev,
           [productId]: activeBatches
         }
-        console.log('AvailableBatches actualizado:', newBatches)
-        console.log('=== FIN CARGA DE LOTES ===')
         return newBatches
       })
     } catch (err) {
-      console.error('=== ERROR AL CARGAR LOTES ===')
-      console.error('Error completo:', err)
-      console.error('ProductId que causó el error:', productId)
       setAvailableBatches(prev => ({
         ...prev,
         [productId]: []
@@ -338,27 +380,16 @@ export function VentasPage() {
 
     // Agregar los productos del paquete a la lista de productos seleccionados
     // para que el usuario pueda seleccionar lotes
-    console.log('=== ANÁLISIS DE PAQUETE ===')
-    console.log('PackageItem completo:', packageItem)
-    console.log('PackageItem items:', packageItem.items)
-    console.log('Cantidad de items:', packageItem.items?.length)
     
     const packageProducts = packageItem.items
       .filter(item => {
-        console.log('Filtrando item:', item)
-        console.log('Item.product:', item.product)
-        console.log('Item.product._id:', item.product?._id)
         return item.product && item.product._id
       })
       .map(item => {
-        console.log('Mapeando item:', item)
-        console.log('Item product:', item.product, 'Type:', typeof item.product)
         const productId = typeof item.product === 'object' ? item.product._id : item.product
-        console.log('ProductId extraído:', productId, 'Tipo:', typeof productId)
         
         // Validar que el productId sea válido
         if (!productId || productId === 'undefined' || productId === '[object Object]') {
-          console.error('ProductId inválido:', productId)
           return null
         }
         
@@ -373,13 +404,10 @@ export function VentasPage() {
           packageName: packageItem.name
         }
         
-        console.log('PackageProduct creado:', packageProduct)
         return packageProduct
       })
       .filter(item => item !== null) // Filtrar items nulos
     
-    console.log('PackageProducts finales:', packageProducts)
-    console.log('=== FIN ANÁLISIS DE PAQUETE ===')
 
     // Agregar cada producto del paquete a la lista
     setSelectedProducts(prev => {
@@ -406,9 +434,7 @@ export function VentasPage() {
     })
 
     // Cargar lotes para los productos del paquete
-    console.log('Cargando lotes para productos del paquete:', packageProducts)
     packageProducts.forEach(packageProduct => {
-      console.log('Cargando lotes para producto del paquete:', packageProduct.product, 'Tipo:', typeof packageProduct.product)
       
       // Validación adicional antes de cargar lotes
       if (packageProduct.product && 
@@ -418,8 +444,6 @@ export function VentasPage() {
           packageProduct.product.length === 24) {
         loadBatchesForProduct(packageProduct.product)
       } else {
-        console.error('=== OMITIENDO CARGA DE LOTES - PRODUCTID INVÁLIDO ===')
-        console.error('ProductId inválido:', packageProduct.product, 'Tipo:', typeof packageProduct.product)
       }
     })
   }
@@ -455,11 +479,19 @@ export function VentasPage() {
       return
     }
 
-    // Validar que todos los productos tengan lotes suficientes (solo si tienen lotes disponibles)
+    // Validar que todos los productos tengan lotes suficientes (solo si manejan lotes)
     const productsWithoutEnoughBatches = selectedProducts.filter(item => {
-      const hasAvailableBatches = availableBatches[item.product] && availableBatches[item.product].length > 0;
-      if (!hasAvailableBatches) return false; // No requiere lotes
+      const product = products.find(p => p._id === item.product);
       
+      // Si el producto no maneja lotes, no requiere validación
+      if (!product?.managesBatches) return false;
+      
+      const hasAvailableBatches = availableBatches[item.product] && availableBatches[item.product].length > 0;
+      
+      // Si maneja lotes pero no hay lotes disponibles, es un error
+      if (!hasAvailableBatches) return true;
+      
+      // Si hay lotes disponibles, verificar que la cantidad total sea suficiente
       const totalBatchQuantity = getTotalBatchQuantity(item.product);
       return totalBatchQuantity < item.quantity;
     });
@@ -514,13 +546,12 @@ export function VentasPage() {
         dueDate: formData.dueDate || null
       }
 
-      await createSale(saleData)
+      const createdSale = await createSale(saleData)
       
       // Limpiar formulario
       setFormData({
         client: '',
         items: [],
-        paymentMethod: '',
         notes: '',
         dueDate: ''
       })
@@ -529,18 +560,19 @@ export function VentasPage() {
       setSelectedBatches({})
       setAvailableBatches({})
       setShowForm(false)
+      
+      // Mostrar modal de confirmación de pago
+      setNewlyCreatedSale(createdSale)
+      setShowPaymentPromptModal(true)
     } catch (err) {
-      console.error('Error al crear venta:', err)
     }
   }
 
   const handleEdit = async (sale) => {
-    console.log('Editando venta:', sale)
     setEditingSale(sale)
     setFormData({
       client: sale.client._id || sale.client,
       items: sale.items || [],
-      paymentMethod: sale.paymentMethod || '',
       notes: sale.notes || '',
       dueDate: sale.dueDate ? new Date(sale.dueDate).toISOString().split('T')[0] : ''
     })
@@ -601,7 +633,6 @@ export function VentasPage() {
           selectedBatchesData[productId] = itemData.batches
         }
       } catch (err) {
-        console.error('Error al cargar lotes del producto:', err)
         batchesData[productId] = []
       }
     }
@@ -610,19 +641,7 @@ export function VentasPage() {
     setAvailableBatches(batchesData)
     setSelectedBatches(selectedBatchesData)
     setShowForm(true)
-    
-    console.log('Datos precargados:', {
-      processedItems,
-      batchesData,
-      selectedBatchesData,
-      saleMode: hasPackageItems ? 'packages' : 'products'
-    })
-    
     // Debug adicional para lotes
-    console.log('=== DEBUG LOTES ===')
-    console.log('selectedBatches después de setSelectedBatches:', selectedBatchesData)
-    console.log('availableBatches después de setAvailableBatches:', batchesData)
-    console.log('=== FIN DEBUG LOTES ===')
   }
 
   const removeProduct = (itemId, index) => {
@@ -650,7 +669,6 @@ export function VentasPage() {
       try {
         await deleteSale(saleId)
       } catch (err) {
-        console.error('Error al eliminar venta:', err)
       }
     }
   }
@@ -659,8 +677,83 @@ export function VentasPage() {
     try {
       await updatePaymentStatus(saleId, newStatus)
     } catch (err) {
-      console.error('Error al actualizar estado:', err)
     }
+  }
+
+  // Funciones para pagos parciales
+  const handleAddPayment = async (saleId, paymentData) => {
+    try {
+      await addPayment(saleId, paymentData)
+      // No necesitamos recargar pagos ya que addPayment actualiza el estado
+      // Recargar cuentas bancarias para obtener balances actualizados
+      await fetchBanks()
+    } catch (err) {
+      throw err
+    }
+  }
+
+  const loadSalePayments = async (saleId) => {
+    try {
+      const paymentData = await getPayments(saleId)
+      if (paymentData) {
+        setSalePayments(prev => ({
+          ...prev,
+          [saleId]: paymentData
+        }))
+      }
+    } catch (err) {
+    }
+  }
+
+  const handleOpenPaymentModal = async (sale) => {
+    setSelectedSaleForPayment(sale)
+    setShowPaymentModal(true)
+    // Cargar pagos existentes
+    await loadSalePayments(sale._id)
+  }
+
+  const handleClosePaymentModal = () => {
+    setShowPaymentModal(false)
+    setSelectedSaleForPayment(null)
+  }
+
+  // Funciones para historial de pagos
+  const handleOpenPaymentHistory = (sale) => {
+    setSelectedSaleForHistory(sale)
+    setShowPaymentHistoryModal(true)
+  }
+
+  const handleClosePaymentHistory = () => {
+    setShowPaymentHistoryModal(false)
+    setSelectedSaleForHistory(null)
+  }
+
+  const handleDeletePaymentFromHistory = async (saleId, paymentId) => {
+    try {
+      await deletePayment(saleId, paymentId)
+      // Recargar cuentas bancarias para obtener balances actualizados
+      await fetchBanks()
+    } catch (err) {
+      throw err
+    }
+  }
+
+  // Funciones para el modal de confirmación de pago
+  const handlePayNow = () => {
+    setShowPaymentPromptModal(false)
+    setSelectedSaleForPayment(newlyCreatedSale)
+    setShowPaymentModal(true)
+    setNewlyCreatedSale(null)
+  }
+
+  const handleSkipPayment = () => {
+    setShowPaymentPromptModal(false)
+    setNewlyCreatedSale(null)
+  }
+
+  const handleClosePaymentPrompt = () => {
+    setShowPaymentPromptModal(false)
+    setNewlyCreatedSale(null)
   }
 
   const filteredSales = sales.filter(sale => {
@@ -670,6 +763,8 @@ export function VentasPage() {
     const matchesFilter = filterStatus === 'todos' || sale.paymentStatus === filterStatus
     return matchesSearch && matchesFilter
   })
+
+  // Debug para verificar filtrado (temporal)
 
   const getStatusInfo = (status) => {
     return statuses.find(s => s.value === status)
@@ -716,6 +811,15 @@ export function VentasPage() {
     return packageId?.name || 'Paquete no encontrado'
   }
 
+  const getBankAccountName = (bankAccountId) => {
+    if (!bankAccountId) return ''
+    if (typeof bankAccountId === 'string') {
+      const bank = banks.find(b => b._id === bankAccountId)
+      return bank ? `${bank.name} - ${bank.accountNumber}` : 'Cuenta no encontrada'
+    }
+    return bankAccountId?.name || 'Cuenta no encontrada'
+  }
+
   const getItemName = (item) => {
     if (item.isPackage && item.package) {
       return getPackageName(item.package)
@@ -728,9 +832,16 @@ export function VentasPage() {
 
   const validateBatchesSelected = () => {
     return selectedProducts.every(item => {
+      const product = products.find(p => p._id === item.product);
+      
+      // Si el producto no maneja lotes, siempre es válido
+      if (!product?.managesBatches) return true;
+      
       const hasAvailableBatches = availableBatches[item.product] && availableBatches[item.product].length > 0;
-      // Si no hay lotes disponibles, no se requiere selección
-      if (!hasAvailableBatches) return true;
+      
+      // Si el producto maneja lotes pero no hay lotes disponibles, es inválido
+      if (!hasAvailableBatches) return false;
+      
       // Si hay lotes disponibles, verificar que la cantidad total sea suficiente
       const totalBatchQuantity = getTotalBatchQuantity(item.product);
       return totalBatchQuantity >= item.quantity;
@@ -756,7 +867,16 @@ export function VentasPage() {
           <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 mb-2">Gestión de Ventas</h1>
           <p className="text-gray-600 text-sm sm:text-base">Administra las ventas y pedidos de clientes</p>
         </div>
-        <div className="flex-shrink-0">
+        <div className="flex-shrink-0 flex flex-col sm:flex-row gap-2">
+          <Button 
+            onClick={openImportModal}
+            variant="outline"
+            className="w-full sm:w-auto flex items-center justify-center space-x-2 shadow-medium hover:shadow-strong transform hover:-translate-y-1 transition-all duration-300"
+          >
+            <Upload className="w-5 h-5" />
+            <span className="hidden sm:inline">Importar</span>
+            <span className="sm:hidden">Importar</span>
+          </Button>
           <Button 
             onClick={() => setShowForm(true)}
             className="w-full lg:w-auto btn-primary flex items-center justify-center space-x-2 shadow-medium hover:shadow-strong transform hover:-translate-y-1 transition-all duration-300"
@@ -828,7 +948,6 @@ export function VentasPage() {
                 setFormData({
                   client: '',
                   items: [],
-                  paymentMethod: '',
                   notes: '',
                   dueDate: ''
                 })
@@ -863,24 +982,6 @@ export function VentasPage() {
                 </select>
               </div>
 
-              {/* Método de Pago */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Método de Pago *
-                </label>
-                <select
-                  name="paymentMethod"
-                  value={formData.paymentMethod}
-                  onChange={handleInputChange}
-                  required
-                  className="w-full input-field"
-                >
-                  <option value="">Seleccionar método</option>
-                  {paymentMethods.map(method => (
-                    <option key={method.value} value={method.value}>{method.label}</option>
-                  ))}
-                </select>
-              </div>
 
               {/* Fecha de Vencimiento */}
               <div>
@@ -991,7 +1092,6 @@ export function VentasPage() {
                       ))
                     ) : (
                       (() => {
-                        console.log('Rendering packages, availablePackages:', availablePackages);
                         return availablePackages.map(packageItem => (
                           <option 
                             key={packageItem._id} 
@@ -1052,23 +1152,35 @@ export function VentasPage() {
                       <div className="bg-blue-50 rounded-lg p-3">
                         <label className="block text-xs font-medium text-blue-700 mb-2 flex items-center">
                           <Package2 className="w-4 h-4 mr-1" />
-                          Seleccionar Lotes {availableBatches[item.product] && availableBatches[item.product].length > 0 ? '*' : '(Opcional)'}
+                          Seleccionar Lotes {(() => {
+                            const product = products.find(p => p._id === item.product);
+                            const hasBatches = availableBatches[item.product] && availableBatches[item.product].length > 0;
+                            if (product?.managesBatches && hasBatches) return '*';
+                            if (product?.managesBatches && !hasBatches) return '(Sin lotes disponibles)';
+                            return '(Opcional)';
+                          })()}
                         </label>
-                        {availableBatches[item.product] && availableBatches[item.product].length > 0 ? (
+                        {(() => {
+                          const product = products.find(p => p._id === item.product);
+                          if (!product?.managesBatches) {
+                            return (
+                              <div className="text-sm text-gray-600 bg-gray-50 p-2 rounded">
+                                Este producto no maneja lotes - se puede vender directamente
+                              </div>
+                            );
+                          }
+                          
+                          if (availableBatches[item.product] && availableBatches[item.product].length > 0) {
+                            return (
                           <div className="space-y-3">
                             {/* Lotes Seleccionados */}
                             {(() => {
-                              console.log(`=== RENDERIZANDO LOTES PARA PRODUCTO ${item.product} ===`)
-                              console.log('selectedBatches[item.product]:', selectedBatches[item.product])
-                              console.log('availableBatches[item.product]:', availableBatches[item.product])
-                              console.log('Condición lotes seleccionados:', selectedBatches[item.product] && selectedBatches[item.product].length > 0)
                               return null
                             })()}
                             {selectedBatches[item.product] && selectedBatches[item.product].length > 0 && (
                               <div className="space-y-2">
                                 {selectedBatches[item.product].map((selectedBatch, index) => {
                                   const batch = availableBatches[item.product].find(b => b._id === selectedBatch.batchId);
-                                  console.log(`Lote ${index}:`, selectedBatch, 'Batch encontrado:', batch)
                                   return batch ? (
                                     <div key={selectedBatch.batchId} className="flex items-center justify-between bg-green-50 p-2 rounded border border-green-200">
                                       <div className="flex-1">
@@ -1138,11 +1250,15 @@ export function VentasPage() {
                               </select>
                             </div>
                           </div>
-                        ) : (
-                          <div className="text-sm text-gray-600 bg-gray-50 p-2 rounded">
-                            Este producto no maneja lotes - se puede vender directamente
-                          </div>
-                        )}
+                            );
+                          }
+                          
+                          return (
+                            <div className="text-sm text-orange-600 bg-orange-50 p-2 rounded border border-orange-200">
+                              ⚠️ Este producto maneja lotes pero no hay lotes disponibles. Verifica que existan lotes activos para este producto.
+                            </div>
+                          );
+                        })()}
                       </div>
 
                       {/* Información del producto de paquete */}
@@ -1264,15 +1380,22 @@ export function VentasPage() {
                 </h4>
                 <div className="space-y-2">
                   {selectedProducts.map((item, index) => {
+                    const product = products.find(p => p._id === item.product);
                     const hasBatch = selectedBatches[item.product]
                     const availableBatchesForProduct = availableBatches[item.product] || []
+                    
                     return (
                       <div key={index} className="flex items-center justify-between">
                         <span className="text-sm text-gray-700">
                           {getProductName(item.product)}
                         </span>
                         <div className="flex items-center space-x-2">
-                          {hasBatch ? (
+                          {!product?.managesBatches ? (
+                            <span className="text-blue-600 text-sm flex items-center">
+                              <CheckCircle className="w-4 h-4 mr-1" />
+                              Sin lotes - Listo para vender
+                            </span>
+                          ) : hasBatch ? (
                             <span className="text-green-600 text-sm flex items-center">
                               <CheckCircle className="w-4 h-4 mr-1" />
                               Lote seleccionado
@@ -1283,9 +1406,9 @@ export function VentasPage() {
                               Pendiente
                             </span>
                           ) : (
-                            <span className="text-blue-600 text-sm flex items-center">
-                              <CheckCircle className="w-4 h-4 mr-1" />
-                              Sin lotes - Listo para vender
+                            <span className="text-red-600 text-sm flex items-center">
+                              <AlertCircle className="w-4 h-4 mr-1" />
+                              Sin lotes disponibles
                             </span>
                           )}
                         </div>
@@ -1307,7 +1430,6 @@ export function VentasPage() {
                   setFormData({
                     client: '',
                     items: [],
-                    paymentMethod: '',
                     notes: '',
                     dueDate: ''
                   })
@@ -1355,7 +1477,17 @@ export function VentasPage() {
                       <div className="flex-1">
                         <h4 className="font-semibold text-gray-900 text-sm">{sale.invoiceNumber}</h4>
                         <p className="text-xs text-gray-600">
-                          {paymentMethods.find(m => m.value === sale.paymentMethod)?.label || sale.paymentMethod}
+                          {sale.paymentMethod ? (
+                            <>
+                              {sale.paymentMethod === 'efectivo' && 'Efectivo'}
+                              {sale.paymentMethod === 'tarjeta' && 'Tarjeta'}
+                              {sale.paymentMethod === 'transferencia' && 'Transferencia'}
+                              {sale.paymentMethod === 'cheque' && 'Cheque'}
+                              {sale.bankAccount && ` • Cuenta: ${getBankAccountName(sale.bankAccount)}`}
+                            </>
+                          ) : (
+                            'Pago pendiente'
+                          )}
                         </p>
                       </div>
                       <div className="flex items-center space-x-2">
@@ -1406,6 +1538,18 @@ export function VentasPage() {
                       <p className="text-xs text-gray-600">
                         Subtotal: {formatCurrency(sale.subtotal)} • IVA: {formatCurrency(sale.tax)}
                       </p>
+                      {sale.paidAmount > 0 && (
+                        <div className="mt-2 p-2 bg-green-50 rounded border border-green-200">
+                          <p className="text-xs text-green-700">
+                            <span className="font-medium">Pagado:</span> {formatCurrency(sale.paidAmount || 0)}
+                          </p>
+                          {sale.paymentStatus !== 'pagado' && (
+                            <p className="text-xs text-orange-600">
+                              <span className="font-medium">Restante:</span> {formatCurrency(sale.remainingAmount || sale.total)}
+                            </p>
+                          )}
+                        </div>
+                      )}
                     </div>
                     
                     {/* Acciones */}
@@ -1419,6 +1563,28 @@ export function VentasPage() {
                         <Edit className="w-3 h-3 mr-1" />
                         Editar
                       </Button>
+                      {sale.paymentStatus !== 'pagado' && sale.paymentStatus !== 'cancelado' && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleOpenPaymentModal(sale)}
+                          className="flex-1 text-xs p-2 text-green-600 hover:text-green-800"
+                        >
+                          <DollarSign className="w-3 h-3 mr-1" />
+                          Pagar
+                        </Button>
+                      )}
+                      {sale.paidAmount > 0 && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleOpenPaymentHistory(sale)}
+                          className="flex-1 text-xs p-2 text-blue-600 hover:text-blue-800"
+                        >
+                          <Eye className="w-3 h-3 mr-1" />
+                          Historial
+                        </Button>
+                      )}
                       <Button
                         size="sm"
                         variant="outline"
@@ -1473,9 +1639,7 @@ export function VentasPage() {
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div>
                           <div className="text-sm font-medium text-gray-900">{sale.invoiceNumber}</div>
-                          <div className="text-xs text-gray-500">
-                            {paymentMethods.find(m => m.value === sale.paymentMethod)?.label || sale.paymentMethod} • {sale.items?.length || 0} productos
-                          </div>
+                         
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
@@ -1511,6 +1675,18 @@ export function VentasPage() {
                           <div className="text-xs text-gray-500">
                             IVA: {formatCurrency(sale.tax)}
                           </div>
+                          {sale.paidAmount > 0 && (
+                            <div className="mt-1 text-xs">
+                              <div className="text-green-600">
+                                Pagado: {formatCurrency(sale.paidAmount || 0)}
+                              </div>
+                              {sale.paymentStatus !== 'pagado' && (
+                                <div className="text-orange-600">
+                                  Restante: {formatCurrency(sale.remainingAmount || sale.total)}
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
@@ -1538,6 +1714,24 @@ export function VentasPage() {
                               <option key={status.value} value={status.value}>{status.label}</option>
                             ))}
                           </select>
+                          {sale.paymentStatus !== 'pagado' && sale.paymentStatus !== 'cancelado' && (
+                            <button
+                              onClick={() => handleOpenPaymentModal(sale)}
+                              className="text-green-600 hover:text-green-900 transition-colors duration-200"
+                              title="Agregar Pago"
+                            >
+                              <DollarSign className="w-4 h-4" />
+                            </button>
+                          )}
+                          {sale.paidAmount > 0 && (
+                            <button
+                              onClick={() => handleOpenPaymentHistory(sale)}
+                              className="text-blue-600 hover:text-blue-900 transition-colors duration-200"
+                              title="Ver Historial de Pagos"
+                            >
+                              <Eye className="w-4 h-4" />
+                            </button>
+                          )}
                           <button
                             onClick={() => handleEdit(sale)}
                             className="text-blue-600 hover:text-blue-900 transition-colors duration-200"
@@ -1575,6 +1769,45 @@ export function VentasPage() {
           </div>
         )}
       </div>
+
+      {/* Modal de Pagos Parciales */}
+      <PaymentModal
+        isOpen={showPaymentModal}
+        onClose={handleClosePaymentModal}
+        sale={selectedSaleForPayment}
+        onSave={handleAddPayment}
+        banks={banks}
+      />
+
+      {/* Modal de Historial de Pagos */}
+      <PaymentHistoryModal
+        isOpen={showPaymentHistoryModal}
+        onClose={handleClosePaymentHistory}
+        sale={selectedSaleForHistory}
+        onDeletePayment={handleDeletePaymentFromHistory}
+        banks={banks}
+      />
+
+      {/* Modal de Confirmación de Pago */}
+      <PaymentPromptModal
+        isOpen={showPaymentPromptModal}
+        onClose={handleClosePaymentPrompt}
+        onPayNow={handlePayNow}
+        onSkipPayment={handleSkipPayment}
+        sale={newlyCreatedSale}
+      />
+
+      {/* Modal de Importación */}
+      <ImportModal
+        isOpen={importModalOpen}
+        onClose={closeImportModal}
+        onImport={importData}
+        title={importConfig.title}
+        description={importConfig.description}
+        sampleData={importConfig.sampleData}
+        columns={importConfig.columns}
+        loading={importLoading}
+      />
     </div>
   )
 }

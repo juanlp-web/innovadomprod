@@ -29,7 +29,6 @@ export const useProducts = () => {
         limit
       });
     } catch (err) {
-      console.error('Error al obtener productos:', err);
       setError(err.response?.data?.message || 'Error al obtener productos');
     } finally {
       setLoading(false);
@@ -52,7 +51,6 @@ export const useProducts = () => {
       setProducts(prev => [newProduct, ...prev]);
       return { success: true, product: newProduct };
     } catch (err) {
-      console.error('Error al crear producto:', err);
       const errorMessage = err.response?.data?.message || 'Error al crear producto';
       setError(errorMessage);
       return { success: false, error: errorMessage };
@@ -76,7 +74,6 @@ export const useProducts = () => {
       
       return { success: true, product: updatedProduct };
     } catch (err) {
-      console.error('Error al actualizar producto:', err);
       const errorMessage = err.response?.data?.message || 'Error al actualizar producto';
       setError(errorMessage);
       return { success: false, error: errorMessage };
@@ -96,7 +93,6 @@ export const useProducts = () => {
       setProducts(prev => prev.filter(p => p._id !== id));
       return { success: true };
     } catch (err) {
-      console.error('Error al eliminar producto:', err);
       const errorMessage = err.response?.data?.message || 'Error al eliminar producto';
       setError(errorMessage);
       return { success: false, error: errorMessage };
@@ -120,7 +116,6 @@ export const useProducts = () => {
       
       return { success: true, product: updatedProduct };
     } catch (err) {
-      console.error('Error al actualizar stock:', err);
       const errorMessage = err.response?.data?.message || 'Error al actualizar stock';
       setError(errorMessage);
       return { success: false, error: errorMessage };
@@ -138,7 +133,6 @@ export const useProducts = () => {
       const response = await productsAPI.getLowStock();
       return response.data;
     } catch (err) {
-      console.error('Error al obtener productos con stock bajo:', err);
       setError(err.response?.data?.message || 'Error al obtener productos con stock bajo');
       return [];
     } finally {

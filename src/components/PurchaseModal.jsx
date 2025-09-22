@@ -1,9 +1,11 @@
-import { useState, useEffect } from 'react'
-import { X, Plus, Trash2, Save, Loader2, Package2 } from 'lucide-react'
+import React, { useState, useEffect, useRef } from 'react'
+import { X, Plus, Trash2, Save, Loader2, Package2, Search } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useSuppliers } from '@/hooks/useSuppliers'
 import { useProducts } from '@/hooks/useProducts'
 import { useMobile } from '@/hooks/useMobile'
+import { useAccountConfigs } from '@/hooks/useAccountConfigs'
+import { useAccounts } from '@/hooks/useAccounts'
 
 export function PurchaseModal({ 
   isOpen, 
@@ -15,7 +17,7 @@ export function PurchaseModal({
   const { isMobile } = useMobile()
   const [formData, setFormData] = useState({
     supplier: '',
-    items: [{ product: '', quantity: 1, unit: 'unidad', price: 0 }],
+    items: [{ product: '', quantity: 1, unit: 'unidad', price: 0, itemType: 'product' }],
     paymentMethod: 'Transferencia Bancaria',
     expectedDelivery: '',
     notes: ''
@@ -23,18 +25,69 @@ export function PurchaseModal({
 
   const [errors, setErrors] = useState({})
   const [isSubmitting, setIsSubmitting] = useState(false)
+  
+  // Estados para el selector de items (productos y cuentas)
+  const [showItemDropdown, setShowItemDropdown] = useState({})
+  const [itemSearchTerm, setItemSearchTerm] = useState({})
+  const [selectedItem, setSelectedItem] = useState({})
+  const itemSearchRef = useRef(null)
 
   const { suppliers } = useSuppliers()
   const { products, loading: productsLoading } = useProducts()
+  const { accountConfigs, loading: configsLoading } = useAccountConfigs()
+  const { flatAccounts, loading: accountsLoading } = useAccounts()
   
-  // Debug: verificar que los productos se cargan
-  useEffect(() => {
-    console.log('Productos cargados en PurchaseModal:', { 
-      count: products.length, 
-      loading: productsLoading,
-      products: products.slice(0, 3) // Primeros 3 productos para debug
-    })
-  }, [products, productsLoading])
+  // Obtener cuentas de gastos para imputación contable
+  const expenseAccounts = React.useMemo(() => {
+    const expenseAccountsFromConfigs = accountConfigs?.compras ? Object.values(accountConfigs.compras) : []
+    const expenseAccountsFromList = flatAccounts?.filter(account => account.type === 'gasto') || []
+    
+    // Usar configuraciones si están disponibles, sino usar la lista de cuentas
+    const result = expenseAccountsFromConfigs.length > 0 ? expenseAccountsFromConfigs : expenseAccountsFromList
+    return result
+  }, [accountConfigs, flatAccounts, configsLoading, accountsLoading])
+
+  // Combinar productos y cuentas contables en una sola lista
+  const combinedItems = React.useMemo(() => {
+    const productItems = products.map(product => ({
+      id: product._id,
+      name: product.name,
+      sku: product.sku,
+      type: 'product',
+      category: product.category,
+      unit: product.unit,
+      price: product.price || 0
+    }))
+    
+    const accountItems = expenseAccounts.map(account => ({
+      id: account.accountId || account._id || account.id,
+      name: account.accountName || account.name,
+      sku: account.accountCode || account.code,
+      type: 'account',
+      category: account.accountType || account.type,
+      unit: 'unidad',
+      price: 0
+    }))
+    
+    return [...productItems, ...accountItems]
+  }, [products, expenseAccounts])
+  
+  // Filtrar items basado en el término de búsqueda
+  const getFilteredItems = (searchTerm) => {
+    if (combinedItems.length > 0 && searchTerm) {
+      return combinedItems.filter(item => {
+        const itemName = item.name || ''
+        const itemSku = item.sku || ''
+        const search = searchTerm.toLowerCase()
+        
+        return itemName.toLowerCase().includes(search) || 
+               itemSku.toLowerCase().includes(search)
+      })
+    }
+    return combinedItems || []
+  }
+  
+  
   const [availableBatches, setAvailableBatches] = useState({})
   const [selectedBatches, setSelectedBatches] = useState({})
   const [newBatchData, setNewBatchData] = useState({})
@@ -46,31 +99,92 @@ export function PurchaseModal({
       if (purchase) {
         // Modo edición
         setFormData({
-          supplier: purchase.supplier._id || purchase.supplier,
+          supplier: purchase.supplier?._id || purchase.supplier || '',
           items: purchase.items.map(item => ({
-            product: item.product._id || item.product,
+            product: item.product?._id || item.product || '',
             quantity: item.quantity,
             unit: item.unit,
-            price: item.price
+            price: item.price,
+            itemType: item.itemType || 'product'
           })),
           paymentMethod: purchase.paymentMethod,
           expectedDelivery: purchase.expectedDelivery ? new Date(purchase.expectedDelivery).toISOString().split('T')[0] : '',
           notes: purchase.notes || ''
         })
+        
+        // Los estados de búsqueda y selección se inicializarán en un useEffect separado
+        // cuando combinedItems esté disponible
       } else {
         // Modo creación - establecer fecha de entrega como fecha actual
         const today = new Date().toISOString().split('T')[0]
         setFormData({
           supplier: '',
-          items: [{ product: '', quantity: 1, unit: 'unidad', price: 0 }],
+          items: [{ product: '', quantity: 1, unit: 'unidad', price: 0, itemType: 'product' }],
           paymentMethod: 'Transferencia Bancaria',
           expectedDelivery: today,
           notes: ''
         })
+        
+        // Limpiar estados de búsqueda y selección
+        setItemSearchTerm({})
+        setSelectedItem({})
       }
       setErrors({})
     }
   }, [isOpen, purchase])
+
+  // Inicializar estados de búsqueda y selección cuando combinedItems esté disponible
+  useEffect(() => {
+    if (isOpen && purchase && combinedItems.length > 0) {
+      const newItemSearchTerm = {}
+      const newSelectedItem = {}
+      
+      purchase.items.forEach((item, index) => {
+        const itemType = item.itemType || 'product'
+        let productId = null
+        
+        if (itemType === 'account') {
+          // Para cuentas contables, usar accountId
+          productId = item.accountId
+        } else if (item.product) {
+          // Para productos, extraer el ID del producto
+          productId = typeof item.product === 'object' ? item.product._id || item.product.id : item.product
+        }
+        
+        if (productId) {
+          // Buscar el item en combinedItems - puede ser _id o id
+          const foundItem = combinedItems.find(i => i.id === productId || i._id === productId)
+          
+          if (foundItem) {
+            newItemSearchTerm[index] = `${foundItem.sku} - ${foundItem.name}`
+            newSelectedItem[index] = foundItem
+          }
+        }
+      })
+      
+      setItemSearchTerm(newItemSearchTerm)
+      setSelectedItem(newSelectedItem)
+    }
+  }, [isOpen, purchase, combinedItems])
+
+  // Cerrar dropdown de items cuando se hace clic fuera
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      Object.keys(showItemDropdown).forEach(index => {
+        if (showItemDropdown[index] && !event.target.closest(`.item-dropdown-container-${index}`)) {
+          setShowItemDropdown(prev => ({
+            ...prev,
+            [index]: false
+          }))
+        }
+      })
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [showItemDropdown])
 
   // Validar formulario
   const validateForm = () => {
@@ -123,73 +237,55 @@ export function PurchaseModal({
   }
 
   // Cargar lotes disponibles cuando se selecciona un producto
-  const handleProductSelection = async (index, productId) => {
-    console.log('handleProductSelection llamado:', { index, productId, productsLength: products.length })
-    
-    if (!productId) {
-      console.log('No hay productId, saliendo')
+  const handleItemSelection = async (index, itemId) => {
+    if (!itemId) {
       return
     }
     
     try {
-      // Buscar el producto seleccionado para obtener su unidad y costo
-      const selectedProduct = products.find(p => p._id === productId)
-      console.log('Producto encontrado:', selectedProduct)
+      // Buscar el item seleccionado (producto o cuenta contable)
+      const selectedItem = combinedItems.find(item => item.id === itemId)
       
-      if (selectedProduct) {
-        // Actualizar el item con la unidad y costo del producto
+      if (selectedItem) {
+        // Actualizar el item con la información correspondiente
         const newItems = [...formData.items]
         newItems[index] = {
           ...newItems[index],
-          product: productId,
-          unit: selectedProduct.unit || 'unidad',
-          price: selectedProduct.cost || 0
+          product: itemId,
+          itemType: selectedItem.type,
+          unit: selectedItem.unit || 'unidad',
+          price: selectedItem.price || 0
         }
-        
-        console.log('Actualizando item:', {
-          index,
-          oldItem: formData.items[index],
-          newItem: newItems[index]
-        })
         
         setFormData(prev => ({
           ...prev,
           items: newItems
         }))
-        
-        console.log('Producto seleccionado y actualizado:', {
-          name: selectedProduct.name,
-          unit: selectedProduct.unit,
-          cost: selectedProduct.cost
-        })
-      } else {
-        console.log('Producto no encontrado en la lista')
       }
       
-      // Por ahora, no cargamos lotes existentes automáticamente
-      // Los lotes se crearán cuando se complete la compra
-      setAvailableBatches(prev => ({
-        ...prev,
-        [productId]: []
-      }))
-      
-      // Limpiar selección previa y datos de lotes
-      setSelectedBatches(prev => {
-        const newBatches = { ...prev }
-        delete newBatches[productId]
-        return newBatches
-      })
-      setNewBatchData(prev => {
-        const newData = { ...prev }
-        delete newData[productId]
-        return newData
-      })
+      // Si es un producto que maneja lotes, configurar lotes
+      if (selectedItem?.type === 'product') {
+        const product = products.find(p => p._id === itemId)
+        if (product?.managesBatches) {
+          setAvailableBatches(prev => ({
+            ...prev,
+            [itemId]: []
+          }))
+          
+          // Limpiar selección previa y datos de lotes
+          setSelectedBatches(prev => {
+            const newBatches = { ...prev }
+            delete newBatches[itemId]
+            return newBatches
+          })
+          setNewBatchData(prev => {
+            const newData = { ...prev }
+            delete newData[itemId]
+            return newData
+          })
+        }
+      }
     } catch (err) {
-      console.error('Error al cargar lotes:', err)
-      setAvailableBatches(prev => ({
-        ...prev,
-        [productId]: []
-      }))
     }
   }
 
@@ -247,7 +343,7 @@ export function PurchaseModal({
   const handleItemChange = (index, field, value) => {
     // Si se cambió el producto, cargar lotes disponibles y actualizar unidad/costo
     if (field === 'product') {
-      handleProductSelection(index, value)
+      handleItemSelection(index, value)
     } else {
       // Para otros campos, actualizar normalmente
       const newItems = [...formData.items]
@@ -264,7 +360,7 @@ export function PurchaseModal({
   const addItem = () => {
     setFormData(prev => ({
       ...prev,
-      items: [...prev.items, { product: '', quantity: 1, unit: 'unidad', price: 0 }]
+      items: [...prev.items, { product: '', quantity: 1, unit: 'unidad', price: 0, itemType: 'product' }]
     }))
   }
 
@@ -278,10 +374,10 @@ export function PurchaseModal({
     }
   }
 
-  // Obtener nombre del producto
-  const getProductName = (productId) => {
-    const product = products.find(p => p._id === productId)
-    return product ? product.name : ''
+  // Obtener nombre del producto o cuenta contable
+  const getItemName = (itemId) => {
+    const item = combinedItems.find(i => i.id === itemId)
+    return item ? item.name : ''
   }
 
   // Obtener nombre del proveedor
@@ -296,6 +392,64 @@ export function PurchaseModal({
       const total = (item.quantity || 0) * (item.price || 0)
       return sum + total
     }, 0)
+  }
+
+  // Manejar búsqueda de items
+  const handleItemSearch = (index, value) => {
+    setItemSearchTerm(prev => ({
+      ...prev,
+      [index]: value
+    }))
+    setShowItemDropdown(prev => ({
+      ...prev,
+      [index]: true
+    }))
+    
+    // Si se limpia la búsqueda, limpiar la selección
+    if (!value.trim()) {
+      setSelectedItem(prev => ({
+        ...prev,
+        [index]: null
+      }))
+      handleItemChange(index, 'product', '')
+    }
+  }
+
+  // Manejar selección de item
+  const handleItemSelect = (index, item) => {
+    const newSearchTerm = `${item.sku} - ${item.name}`
+    
+    setSelectedItem(prev => ({
+      ...prev,
+      [index]: item
+    }))
+    setItemSearchTerm(prev => ({
+      ...prev,
+      [index]: newSearchTerm
+    }))
+    setShowItemDropdown(prev => ({
+      ...prev,
+      [index]: false
+    }))
+    
+    handleItemChange(index, 'product', item.id)
+  }
+
+  // Limpiar selección de cuenta contable
+  const handleClearItem = (index) => {
+    setSelectedItem(prev => ({
+      ...prev,
+      [index]: null
+    }))
+    setItemSearchTerm(prev => ({
+      ...prev,
+      [index]: ''
+    }))
+    setShowItemDropdown(prev => ({
+      ...prev,
+      [index]: false
+    }))
+    handleItemChange(index, 'product', '')
   }
 
   // Manejar envío del formulario
@@ -317,7 +471,7 @@ export function PurchaseModal({
           const itemData = { ...item }
           
           // Agregar información de lotes si el producto los maneja
-          if (item.product && products.find(p => p._id === item.product)?.managesBatches) {
+          if (item.itemType === 'product' && item.product && products.find(p => p._id === item.product)?.managesBatches) {
             if (selectedBatches[item.product]) {
               // Lote existente seleccionado
               itemData.batch = selectedBatches[item.product]
@@ -336,7 +490,6 @@ export function PurchaseModal({
       await onSave(purchaseData)
       onClose()
     } catch (error) {
-      console.error('Error saving purchase:', error)
     } finally {
       setIsSubmitting(false)
     }
@@ -389,7 +542,6 @@ export function PurchaseModal({
                 <p className="text-red-500 text-sm mt-1">{errors.supplier}</p>
               )}
             </div>
-
 
             {/* Método de pago */}
             <div>
@@ -461,193 +613,329 @@ export function PurchaseModal({
 
             <div className="space-y-4">
               {formData.items.map((item, index) => (
-                <div key={index} className={`border border-gray-200 rounded-lg ${isMobile ? 'p-3' : 'p-4'}`}>
-                  <div className={`grid gap-3 ${isMobile ? 'grid-cols-1' : 'grid-cols-12'}`}>
-                  {/* Producto */}
-                  <div className={isMobile ? 'w-full' : 'col-span-3'}>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">
-                      Producto *
-                    </label>
-                    <select
-                      value={item.product}
-                      onChange={(e) => handleItemChange(index, 'product', e.target.value)}
-                      className={`w-full border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                        errors[`items.${index}.product`] ? 'border-red-300' : 'border-gray-300'
-                      } ${isMobile ? 'px-4 py-3 text-base' : 'px-3 py-2'}`}
-                    >
-                      <option value="">Seleccionar producto</option>
-                      {products.map(product => (
-                        <option key={product._id} value={product._id}>
-                          {product.name} ({product.sku})
-                        </option>
-                      ))}
-                    </select>
-                    {errors[`items.${index}.product`] && (
-                      <p className="text-red-500 text-xs mt-1">{errors[`items.${index}.product`]}</p>
-                    )}
-                  </div>
-
-                  {/* Cantidad */}
-                  <div className={isMobile ? 'w-full' : 'col-span-2'}>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">
-                      Cantidad *
-                    </label>
-                    <input
-                      type="number"
-                      placeholder="Cantidad"
-                      value={item.quantity}
-                      onChange={(e) => handleItemChange(index, 'quantity', parseFloat(e.target.value))}
-                      min="1"
-                      step="0.01"
-                      className={`w-full border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                        errors[`items.${index}.quantity`] ? 'border-red-300' : 'border-gray-300'
-                      } ${isMobile ? 'px-4 py-3 text-base' : 'px-3 py-2'}`}
-                    />
-                    {errors[`items.${index}.quantity`] && (
-                      <p className="text-red-500 text-xs mt-1">{errors[`items.${index}.quantity`]}</p>
-                    )}
-                  </div>
-
-                  {/* Unidad */}
-                  <div className={isMobile ? 'w-full' : 'col-span-2'}>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">
-                      Unidad *
-                    </label>
-                    <select
-                      value={item.unit}
-                      onChange={(e) => handleItemChange(index, 'unit', e.target.value)}
-                      className={`w-full border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                        errors[`items.${index}.unit`] ? 'border-red-300' : 'border-gray-300'
-                      } ${isMobile ? 'px-4 py-3 text-base' : 'px-3 py-2'}`}
-                    >
-                      {['kg', 'g', 'l', 'ml', 'unidad', 'docena', 'caja', 'metro', 'cm'].map(unit => (
-                        <option key={unit} value={unit}>{unit}</option>
-                      ))}
-                    </select>
-                    {errors[`items.${index}.unit`] && (
-                      <p className="text-red-500 text-xs mt-1">{errors[`items.${index}.unit`]}</p>
-                    )}
-                  </div>
-
-                  {/* Precio */}
-                  <div className={isMobile ? 'w-full' : 'col-span-2'}>
-                    <label className="block text-xs font-medium text-gray-700 mb-1">
-                      Precio *
-                    </label>
-                    <input
-                      type="number"
-                      placeholder="Precio"
-                      value={item.price}
-                      onChange={(e) => handleItemChange(index, 'price', parseFloat(e.target.value))}
-                      min="0"
-                      step="0.01"
-                      className={`w-full border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                        errors[`items.${index}.price`] ? 'border-red-300' : 'border-gray-300'
-                      } ${isMobile ? 'px-4 py-3 text-base' : 'px-3 py-2'}`}
-                    />
-                    {errors[`items.${index}.price`] && (
-                      <p className="text-red-500 text-xs mt-1">{errors[`items.${index}.price`]}</p>
-                    )}
-                  </div>
-
-                  {/* Total y Acciones */}
-                  <div className={`flex items-center justify-between ${isMobile ? 'w-full' : 'col-span-2'}`}>
-                    <span className={`font-medium text-gray-900 ${isMobile ? 'text-base' : 'text-sm'}`}>
-                      Total: ${((item.quantity || 0) * (item.price || 0)).toFixed(2)}
-                    </span>
+                <div key={index} className="border border-gray-200 rounded-lg bg-white shadow-sm">
+                  {/* Header del item */}
+                  <div className="flex items-center justify-between p-4 border-b border-gray-100 bg-gray-50">
+                    <div className="flex items-center space-x-2">
+                      <div className="w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-medium">
+                        {index + 1}
+                      </div>
+                      <h3 className="text-sm font-medium text-gray-700">
+                        {selectedItem[index] ? selectedItem[index].name : 'Item sin seleccionar'}
+                      </h3>
+                      {selectedItem[index] && (
+                        <span className={`text-xs px-2 py-1 rounded-full ${
+                          selectedItem[index].type === 'product' 
+                            ? 'bg-blue-100 text-blue-800' 
+                            : 'bg-green-100 text-green-800'
+                        }`}>
+                          {selectedItem[index].type === 'product' ? 'Producto' : 'Cuenta'}
+                        </span>
+                      )}
+                    </div>
                     <Button
                       type="button"
                       variant="ghost"
                       size="sm"
                       onClick={() => removeItem(index)}
                       disabled={formData.items.length === 1}
-                      className="text-red-600 hover:text-red-700"
+                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
                     >
                       <Trash2 className="w-4 h-4" />
                     </Button>
                   </div>
 
-                  </div>
-
-                  {/* Gestión de Lotes */}
-                  {item.product && products.find(p => p._id === item.product)?.managesBatches && (
-                    <div className={`mt-3 p-3 bg-blue-50 rounded border border-blue-200 ${isMobile ? 'w-full' : 'col-span-12'}`}>
-                      <div className="flex items-center space-x-2 mb-2">
-                        <Package2 className="w-4 h-4 text-blue-500" />
-                        <span className="text-sm font-medium text-blue-700">Gestión de Lotes</span>
-                      </div>
-                      
-                      <div className={`grid gap-4 ${isMobile ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2'}`}>
-                        {/* Seleccionar Lote Existente */}
-                        <div>
-                          <label className="block text-xs font-medium text-blue-700 mb-1">
-                            Seleccionar Lote Existente
-                          </label>
-                          <select
-                            value={selectedBatches[item.product] || ''}
-                            onChange={(e) => handleBatchSelection(item.product, e.target.value)}
-                            className={`w-full border border-blue-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 ${isMobile ? 'px-3 py-2 text-base' : 'px-2 py-1 text-sm'}`}
-                          >
-                            <option value="">Seleccionar lote...</option>
-                            {availableBatches[item.product]?.map(batch => (
-                              <option key={batch._id} value={batch._id}>
-                                Lote #{batch.batchNumber} - Stock: {batch.currentStock} {batch.unit} - Vence: {batch.expirationDate ? new Date(batch.expirationDate).toLocaleDateString() : 'N/A'}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-
-                        {/* Crear/Editar Lote */}
-                        <div>
-                          <label className="block text-xs font-medium text-blue-700 mb-1">
-                            {selectedBatches[item.product] ? 'Editar Lote Seleccionado' : 'Crear Nuevo Lote'}
-                          </label>
-                          <div className="space-y-2">
+                  {/* Contenido del item */}
+                  <div className="p-4">
+                    <div className={`grid gap-4 ${isMobile ? 'grid-cols-1' : 'grid-cols-12'}`}>
+                      {/* Producto/Cuenta Contable - Ocupa toda la fila */}
+                      <div className={isMobile ? 'w-full' : 'col-span-12'}>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Producto/Cuenta Contable *
+                        </label>
+                        <div className={`relative item-dropdown-container-${index}`}>
+                          <div className="relative">
                             <input
                               type="text"
-                              placeholder="Número de lote"
-                              value={newBatchData[item.product]?.batchNumber || ''}
-                              onChange={(e) => handleNewBatchData(item.product, 'batchNumber', e.target.value)}
-                              className={`w-full border border-blue-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 ${isMobile ? 'px-3 py-2 text-base' : 'px-2 py-1 text-sm'}`}
+                              value={itemSearchTerm[index] || ''}
+                              onChange={(e) => handleItemSearch(index, e.target.value)}
+                              onFocus={() => setShowItemDropdown(prev => ({ ...prev, [index]: true }))}
+                              placeholder="Buscar producto o cuenta contable..."
+                              className={`w-full pl-10 pr-10 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                                errors[`items.${index}.product`] ? 'border-red-300' : 'border-gray-300'
+                              } ${isMobile ? 'px-4 py-3 text-base' : 'px-3 py-2'}`}
                             />
-                            <input
-                              type="date"
-                              placeholder="Fecha de vencimiento"
-                              value={newBatchData[item.product]?.expirationDate || ''}
-                              onChange={(e) => handleNewBatchData(item.product, 'expirationDate', e.target.value)}
-                              className={`w-full border border-blue-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 ${isMobile ? 'px-3 py-2 text-base' : 'px-2 py-1 text-sm'}`}
-                            />
-                            <input
-                              type="text"
-                              placeholder="Notas del lote (opcional)"
-                              value={newBatchData[item.product]?.notes || ''}
-                              onChange={(e) => handleNewBatchData(item.product, 'notes', e.target.value)}
-                              className={`w-full border border-blue-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 ${isMobile ? 'px-3 py-2 text-base' : 'px-2 py-1 text-sm'}`}
-                            />
+                            <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
+                              <Search className="w-4 h-4 text-gray-400" />
+                            </div>
+                            <div className="absolute right-3 top-1/2 transform -translate-y-1/2 flex items-center space-x-1">
+                              {selectedItem[index] && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleClearItem(index)}
+                                  className="text-gray-400 hover:text-gray-600"
+                                >
+                                  <X className="w-4 h-4" />
+                                </button>
+                              )}
+                            </div>
                           </div>
+                          
+                          {showItemDropdown[index] && getFilteredItems(itemSearchTerm[index]).length > 0 && (
+                            <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                              {/* Productos */}
+                              {getFilteredItems(itemSearchTerm[index]).filter(item => item.type === 'product').length > 0 && (
+                                <div className="px-3 py-2 bg-gray-50 border-b">
+                                  <span className="text-xs font-medium text-gray-600">Productos</span>
+                                </div>
+                              )}
+                              {getFilteredItems(itemSearchTerm[index]).filter(item => item.type === 'product').map(item => (
+                                <button
+                                  key={item.id}
+                                  type="button"
+                                  onClick={() => handleItemSelect(index, item)}
+                                  className="w-full px-4 py-3 text-left hover:bg-gray-50 focus:bg-gray-50 focus:outline-none border-b border-gray-100 last:border-b-0"
+                                >
+                                  <div className="flex items-center justify-between">
+                                    <div>
+                                      <div className="font-medium text-gray-900">
+                                        {item.name}
+                                      </div>
+                                      <div className="text-sm text-gray-500">
+                                        SKU: {item.sku} | Precio: ${item.price}
+                                      </div>
+                                    </div>
+                                    <div className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                                      Producto
+                                    </div>
+                                  </div>
+                                </button>
+                              ))}
+                              
+                              {/* Cuentas Contables */}
+                              {getFilteredItems(itemSearchTerm[index]).filter(item => item.type === 'account').length > 0 && (
+                                <div className="px-3 py-2 bg-gray-50 border-b">
+                                  <span className="text-xs font-medium text-gray-600">Cuentas Contables</span>
+                                </div>
+                              )}
+                              {getFilteredItems(itemSearchTerm[index]).filter(item => item.type === 'account').map(item => (
+                                <button
+                                  key={item.id}
+                                  type="button"
+                                  onClick={() => handleItemSelect(index, item)}
+                                  className="w-full px-4 py-3 text-left hover:bg-gray-50 focus:bg-gray-50 focus:outline-none border-b border-gray-100 last:border-b-0"
+                                >
+                                  <div className="flex items-center justify-between">
+                                    <div>
+                                      <div className="font-medium text-gray-900">
+                                        {item.name}
+                                      </div>
+                                      <div className="text-sm text-gray-500">
+                                        Código: {item.sku} | Tipo: {item.category}
+                                      </div>
+                                    </div>
+                                    <div className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
+                                      Cuenta
+                                    </div>
+                                  </div>
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                          
+                          {showItemDropdown[index] && getFilteredItems(itemSearchTerm[index]).length === 0 && itemSearchTerm[index] && (
+                            <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg p-4">
+                              <p className="text-sm text-gray-500 text-center">
+                                No se encontraron items que coincidan con "{itemSearchTerm[index]}"
+                              </p>
+                            </div>
+                          )}
                         </div>
-                      </div>
-
-                      {/* Mensaje informativo */}
-                      <div className="mt-2 p-2 bg-blue-100 rounded text-xs text-blue-700">
-                        {selectedBatches[item.product] ? (
-                          <span>✅ Lote seleccionado. Los datos se han cargado automáticamente.</span>
-                        ) : (
-                          <span>📝 Complete el número de lote y fecha de vencimiento para crear un nuevo lote.</span>
+                        {errors[`items.${index}.product`] && (
+                          <p className="text-red-500 text-xs mt-1">{errors[`items.${index}.product`]}</p>
                         )}
                       </div>
 
-                      {errors[`items.${index}.batch`] && (
-                        <p className="text-red-500 text-xs mt-2">{errors[`items.${index}.batch`]}</p>
+                      {/* Información del item seleccionado */}
+                      {selectedItem[index] && (
+                        <div className={isMobile ? 'w-full' : 'col-span-12'}>
+                          <div className="bg-blue-50 rounded-lg p-3">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="text-sm font-medium text-blue-900">
+                                  {selectedItem[index].name}
+                                </p>
+                                <p className="text-xs text-blue-700">
+                                  {selectedItem[index].type === 'product' 
+                                    ? `SKU: ${selectedItem[index].sku} | Precio: $${selectedItem[index].price}`
+                                    : `Código: ${selectedItem[index].sku} | Tipo: ${selectedItem[index].category}`
+                                  }
+                                </p>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-xs text-blue-600 font-medium">
+                                  {selectedItem[index].type === 'product' ? 'Producto' : 'Cuenta Contable'}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
                       )}
-                      {errors[`items.${index}.batchNumber`] && (
-                        <p className="text-red-500 text-xs mt-1">{errors[`items.${index}.batchNumber`]}</p>
-                      )}
-                      {errors[`items.${index}.expirationDate`] && (
-                        <p className="text-red-500 text-xs mt-1">{errors[`items.${index}.expirationDate`]}</p>
-                      )}
+
+                      {/* Cantidad y Unidad en la misma fila */}
+                      <div className={isMobile ? 'w-full' : 'col-span-6'}>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Cantidad *
+                        </label>
+                        <input
+                          type="number"
+                          placeholder="Cantidad"
+                          value={item.quantity}
+                          onChange={(e) => handleItemChange(index, 'quantity', parseFloat(e.target.value))}
+                          min="1"
+                          step="0.01"
+                          className={`w-full border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                            errors[`items.${index}.quantity`] ? 'border-red-300' : 'border-gray-300'
+                          } ${isMobile ? 'px-4 py-3 text-base' : 'px-3 py-2'}`}
+                        />
+                        {errors[`items.${index}.quantity`] && (
+                          <p className="text-red-500 text-xs mt-1">{errors[`items.${index}.quantity`]}</p>
+                        )}
+                      </div>
+
+                      <div className={isMobile ? 'w-full' : 'col-span-6'}>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Unidad *
+                        </label>
+                        <select
+                          value={item.unit}
+                          onChange={(e) => handleItemChange(index, 'unit', e.target.value)}
+                          className={`w-full border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                            errors[`items.${index}.unit`] ? 'border-red-300' : 'border-gray-300'
+                          } ${isMobile ? 'px-4 py-3 text-base' : 'px-3 py-2'}`}
+                        >
+                          {['kg', 'g', 'l', 'ml', 'unidad', 'docena', 'caja', 'metro', 'cm'].map(unit => (
+                            <option key={unit} value={unit}>{unit}</option>
+                          ))}
+                        </select>
+                        {errors[`items.${index}.unit`] && (
+                          <p className="text-red-500 text-xs mt-1">{errors[`items.${index}.unit`]}</p>
+                        )}
+                      </div>
+
+                      {/* Precio y Total en la misma fila */}
+                      <div className={isMobile ? 'w-full' : 'col-span-6'}>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Precio Unitario *
+                        </label>
+                        <input
+                          type="number"
+                          placeholder="Precio"
+                          value={item.price}
+                          onChange={(e) => handleItemChange(index, 'price', parseFloat(e.target.value))}
+                          min="0"
+                          step="0.01"
+                          className={`w-full border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                            errors[`items.${index}.price`] ? 'border-red-300' : 'border-gray-300'
+                          } ${isMobile ? 'px-4 py-3 text-base' : 'px-3 py-2'}`}
+                        />
+                        {errors[`items.${index}.price`] && (
+                          <p className="text-red-500 text-xs mt-1">{errors[`items.${index}.price`]}</p>
+                        )}
+                      </div>
+
+                      <div className={isMobile ? 'w-full' : 'col-span-6'}>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Total
+                        </label>
+                        <div className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-right">
+                          <span className="text-lg font-semibold text-gray-900">
+                            ${((item.quantity || 0) * (item.price || 0)).toFixed(2)}
+                          </span>
+                        </div>
+                      </div>
                     </div>
-                  )}
+
+                    {/* Gestión de Lotes */}
+                    {item.product && products.find(p => p._id === item.product)?.managesBatches && (
+                      <div className={`mt-3 p-3 bg-blue-50 rounded border border-blue-200 ${isMobile ? 'w-full' : 'col-span-12'}`}>
+                        <div className="flex items-center space-x-2 mb-2">
+                          <Package2 className="w-4 h-4 text-blue-500" />
+                          <span className="text-sm font-medium text-blue-700">Gestión de Lotes</span>
+                        </div>
+                        
+                        <div className={`grid gap-4 ${isMobile ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2'}`}>
+                          {/* Seleccionar Lote Existente */}
+                          <div>
+                            <label className="block text-xs font-medium text-blue-700 mb-1">
+                              Seleccionar Lote Existente
+                            </label>
+                            <select
+                              value={selectedBatches[item.product] || ''}
+                              onChange={(e) => handleBatchSelection(item.product, e.target.value)}
+                              className={`w-full border border-blue-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 ${isMobile ? 'px-3 py-2 text-base' : 'px-2 py-1 text-sm'}`}
+                            >
+                              <option value="">Seleccionar lote...</option>
+                              {availableBatches[item.product]?.map(batch => (
+                                <option key={batch._id} value={batch._id}>
+                                  Lote #{batch.batchNumber} - Stock: {batch.currentStock} {batch.unit} - Vence: {batch.expirationDate ? new Date(batch.expirationDate).toLocaleDateString() : 'N/A'}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+
+                          {/* Crear/Editar Lote */}
+                          <div>
+                            <label className="block text-xs font-medium text-blue-700 mb-1">
+                              {selectedBatches[item.product] ? 'Editar Lote Seleccionado' : 'Crear Nuevo Lote'}
+                            </label>
+                            <div className="space-y-2">
+                              <input
+                                type="text"
+                                placeholder="Número de lote"
+                                value={newBatchData[item.product]?.batchNumber || ''}
+                                onChange={(e) => handleNewBatchData(item.product, 'batchNumber', e.target.value)}
+                                className={`w-full border border-blue-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 ${isMobile ? 'px-3 py-2 text-base' : 'px-2 py-1 text-sm'}`}
+                              />
+                              <input
+                                type="date"
+                                placeholder="Fecha de vencimiento"
+                                value={newBatchData[item.product]?.expirationDate || ''}
+                                onChange={(e) => handleNewBatchData(item.product, 'expirationDate', e.target.value)}
+                                className={`w-full border border-blue-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 ${isMobile ? 'px-3 py-2 text-base' : 'px-2 py-1 text-sm'}`}
+                              />
+                              <input
+                                type="text"
+                                placeholder="Notas del lote (opcional)"
+                                value={newBatchData[item.product]?.notes || ''}
+                                onChange={(e) => handleNewBatchData(item.product, 'notes', e.target.value)}
+                                className={`w-full border border-blue-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 ${isMobile ? 'px-3 py-2 text-base' : 'px-2 py-1 text-sm'}`}
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Mensaje informativo */}
+                        <div className="mt-2 p-2 bg-blue-100 rounded text-xs text-blue-700">
+                          {selectedBatches[item.product] ? (
+                            <span>✅ Lote seleccionado. Los datos se han cargado automáticamente.</span>
+                          ) : (
+                            <span>📝 Complete el número de lote y fecha de vencimiento para crear un nuevo lote.</span>
+                          )}
+                        </div>
+
+                        {errors[`items.${index}.batch`] && (
+                          <p className="text-red-500 text-xs mt-2">{errors[`items.${index}.batch`]}</p>
+                        )}
+                        {errors[`items.${index}.batchNumber`] && (
+                          <p className="text-red-500 text-xs mt-1">{errors[`items.${index}.batchNumber`]}</p>
+                        )}
+                        {errors[`items.${index}.expirationDate`] && (
+                          <p className="text-red-500 text-xs mt-1">{errors[`items.${index}.expirationDate`]}</p>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>

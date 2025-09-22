@@ -10,7 +10,8 @@ import {
   Minus,
   RotateCcw,
   Loader2,
-  Eye
+  Eye,
+  Upload
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useBatches } from '@/hooks/useBatches'
@@ -18,6 +19,8 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useToast } from '@/components/ui/toast'
 import { useConfirmationModal, ConfirmationModal } from '@/components/ui/confirmation-modal'
 import { ToastContainer } from '@/components/ui/toast'
+import { useImport } from '@/hooks/useImport'
+import { ImportModal } from '@/components/ImportModal'
 
 export function LotesPage() {
   const [showForm, setShowForm] = useState(false)
@@ -29,6 +32,51 @@ export function LotesPage() {
   const [selectedBatch, setSelectedBatch] = useState(null)
   const [consumeQuantity, setConsumeQuantity] = useState('')
   const [restoreQuantity, setRestoreQuantity] = useState('')
+
+  // Hook para importación
+  const {
+    loading: importLoading,
+    importModalOpen,
+    openImportModal,
+    closeImportModal,
+    importData
+  } = useImport('batches');
+
+  // Configuración para importación
+  const importConfig = {
+    title: "Importar Lotes",
+    description: "Importa lotes desde un archivo CSV o Excel",
+    sampleData: [
+      {
+        productId: "64a1b2c3d4e5f6789012345",
+        batchNumber: "LOT001",
+        quantity: "100",
+        expiryDate: "2024-12-31",
+        status: "activo"
+      },
+      {
+        productId: "64a1b2c3d4e5f6789012346",
+        batchNumber: "LOT002",
+        quantity: "50",
+        expiryDate: "2025-06-30",
+        status: "activo"
+      },
+      {
+        productId: "64a1b2c3d4e5f6789012347",
+        batchNumber: "LOT003",
+        quantity: "25",
+        expiryDate: "2024-03-15",
+        status: "expirado"
+      }
+    ],
+    columns: [
+      { key: 'productId', header: 'ID del Producto', required: true },
+      { key: 'batchNumber', header: 'Número de Lote', required: true },
+      { key: 'quantity', header: 'Cantidad', required: true },
+      { key: 'expiryDate', header: 'Fecha de Vencimiento (YYYY-MM-DD)', required: true },
+      { key: 'status', header: 'Estado (activo/expirado/agotado)', required: false }
+    ]
+  };
 
   // Hook para manejar lotes
   const {
@@ -125,7 +173,6 @@ export function LotesPage() {
       })
       setShowForm(false)
     } catch (error) {
-      console.error('Error al guardar lote:', error)
       showError('Error al guardar el lote')
     }
   }
@@ -144,7 +191,6 @@ export function LotesPage() {
       setSelectedBatch(null)
       setConsumeQuantity('')
     } catch (error) {
-      console.error('Error al consumir stock:', error)
       showError('Error al consumir stock del lote')
     }
   }
@@ -162,7 +208,6 @@ export function LotesPage() {
       setSelectedBatch(null)
       setRestoreQuantity('')
     } catch (error) {
-      console.error('Error al restaurar stock:', error)
       showError('Error al restaurar stock del lote')
     }
   }
@@ -241,7 +286,16 @@ export function LotesPage() {
             Administra los lotes de producción con control de inventario y fechas de vencimiento
           </p>
         </div>
-        <div className="flex-shrink-0">
+        <div className="flex-shrink-0 flex flex-col sm:flex-row gap-2">
+          <Button
+            onClick={openImportModal}
+            variant="outline"
+            className="w-full sm:w-auto"
+          >
+            <Upload className="w-4 h-4 mr-2" />
+            <span className="hidden sm:inline">Importar</span>
+            <span className="sm:hidden">Importar</span>
+          </Button>
           <Button
             onClick={() => setShowForm(true)}
             className="btn-primary w-full lg:w-auto"
@@ -613,6 +667,18 @@ export function LotesPage() {
         modalState={modalState}
         closeModal={closeModal}
         confirm={confirm}
+      />
+
+      {/* Modal de Importación */}
+      <ImportModal
+        isOpen={importModalOpen}
+        onClose={closeImportModal}
+        onImport={importData}
+        title={importConfig.title}
+        description={importConfig.description}
+        sampleData={importConfig.sampleData}
+        columns={importConfig.columns}
+        loading={importLoading}
       />
 
       {/* Toast Container */}

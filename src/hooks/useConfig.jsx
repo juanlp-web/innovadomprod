@@ -19,7 +19,6 @@ export const useConfig = () => {
       setConfigs(configObject);
       return configObject;
     } catch (err) {
-      console.error('Error al obtener configuraciones:', err);
       setError(err.response?.data?.message || 'Error al obtener configuraciones');
       return {};
     } finally {
@@ -47,7 +46,6 @@ export const useConfig = () => {
       
       return response.data;
     } catch (err) {
-      console.error('Error al actualizar configuración:', err);
       setError(err.response?.data?.message || 'Error al actualizar configuración');
       throw err;
     } finally {
@@ -70,7 +68,6 @@ export const useConfig = () => {
       
       return response.data;
     } catch (err) {
-      console.error('Error al crear configuración:', err);
       setError(err.response?.data?.message || 'Error al crear configuración');
       throw err;
     } finally {

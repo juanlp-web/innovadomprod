@@ -226,7 +226,6 @@ export function PaquetesPage() {
       });
       setShowForm(false);
     } catch (error) {
-      console.error('Error al guardar paquete:', error);
       showError('Error al guardar el paquete');
     }
   };
@@ -262,7 +261,6 @@ export function PaquetesPage() {
         await deletePackage(packageId);
         success('Paquete eliminado exitosamente');
       } catch (error) {
-        console.error('Error al eliminar paquete:', error);
         showError('Error al eliminar el paquete');
       }
     }

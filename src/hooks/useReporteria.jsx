@@ -22,7 +22,6 @@ export const useReporteria = () => {
       setLastReport(reportData)
       return { success: true, data: reportData }
     } catch (error) {
-      console.error('Error generando reporte:', error)
       return { success: false, error: error.message }
     } finally {
       setIsGenerating(false)
@@ -43,7 +42,6 @@ export const useReporteria = () => {
       
       return { success: true }
     } catch (error) {
-      console.error('Error descargando reporte:', error)
       return { success: false, error: error.message }
     }
   }, [])
@@ -52,7 +50,6 @@ export const useReporteria = () => {
     try {
       // Aquí se implementaría la exportación a Excel
       // Por ahora simulamos la funcionalidad
-      console.log('Exportando a Excel:', data)
       
       // Simular descarga
       const content = JSON.stringify(data, null, 2)
@@ -68,7 +65,6 @@ export const useReporteria = () => {
       
       return { success: true }
     } catch (error) {
-      console.error('Error exportando a Excel:', error)
       return { success: false, error: error.message }
     }
   }, [])
@@ -77,7 +73,6 @@ export const useReporteria = () => {
     try {
       // Aquí se implementaría la exportación a PDF
       // Por ahora simulamos la funcionalidad
-      console.log('Exportando a PDF:', data)
       
       // Simular descarga
       const content = JSON.stringify(data, null, 2)
@@ -93,7 +88,6 @@ export const useReporteria = () => {
       
       return { success: true }
     } catch (error) {
-      console.error('Error exportando a PDF:', error)
       return { success: false, error: error.message }
     }
   }, [])

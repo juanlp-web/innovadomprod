@@ -43,7 +43,6 @@ export const useDashboard = () => {
 
       setError(null);
     } catch (err) {
-      console.error('Error al cargar estadísticas:', err);
       setError('Error al cargar las estadísticas del dashboard');
     } finally {
       setLoading(false);
@@ -58,7 +57,6 @@ export const useDashboard = () => {
         setMonthlyData(response.data.data);
       }
     } catch (err) {
-      console.error('Error al cargar datos mensuales:', err);
     }
   }, []);
 

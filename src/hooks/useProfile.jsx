@@ -21,7 +21,6 @@ export const useProfile = () => {
         setError('Error al cargar el perfil');
       }
     } catch (err) {
-      console.error('Error al obtener perfil:', err);
       setError('Error al cargar el perfil');
     } finally {
       setLoading(false);
@@ -43,7 +42,6 @@ export const useProfile = () => {
         return { success: false, message: response.data.message };
       }
     } catch (err) {
-      console.error('Error al actualizar perfil:', err);
       toast.error('Error al actualizar el perfil');
       return { success: false, message: err.response?.data?.message || 'Error desconocido' };
     } finally {
@@ -65,7 +63,6 @@ export const useProfile = () => {
         return { success: false, message: response.data.message };
       }
     } catch (err) {
-      console.error('Error al cambiar contraseña:', err);
       const errorMessage = err.response?.data?.message || 'Error al cambiar la contraseña';
       toast.error(errorMessage);
       return { success: false, message: errorMessage };
@@ -83,7 +80,6 @@ export const useProfile = () => {
         setLoginHistory(response.data.data);
       }
     } catch (err) {
-      console.error('Error al obtener historial de accesos:', err);
     }
   }, []);
 
@@ -101,7 +97,6 @@ export const useProfile = () => {
         return { success: false };
       }
     } catch (err) {
-      console.error('Error al actualizar notificaciones:', err);
       toast.error('Error al actualizar notificaciones');
       return { success: false };
     }
@@ -121,7 +116,6 @@ export const useProfile = () => {
         return { success: false };
       }
     } catch (err) {
-      console.error('Error al actualizar tema:', err);
       toast.error('Error al actualizar tema');
       return { success: false };
     }

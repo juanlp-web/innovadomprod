@@ -43,18 +43,10 @@ api.interceptors.response.use(
     if (error.response?.status === 401) {
       const isRefreshCall = error.config?.url?.includes('/auth/refresh');
       const isProfileCall = error.config?.url?.includes('/auth/profile');
+      const isPurchaseCall = error.config?.url?.includes('/purchases');
       
-      // Log para debugging
-      console.warn('Error 401 detectado:', {
-        url: error.config?.url,
-        isRefreshCall,
-        isProfileCall,
-        timestamp: new Date().toISOString()
-      });
-      
-      // Solo hacer logout automático si no es una llamada de refresh o profile inicial
-      if (!isRefreshCall && !isProfileCall) {
-        console.warn('Realizando logout automático por token inválido');
+      // Solo hacer logout automático si no es una llamada de refresh, profile o purchases
+      if (!isRefreshCall && !isProfileCall && !isPurchaseCall) {
         localStorage.removeItem('token');
         localStorage.removeItem('user');
         
@@ -62,6 +54,8 @@ api.interceptors.response.use(
         if (!window.location.pathname.includes('/login')) {
           window.location.href = '/login';
         }
+      } else if (isPurchaseCall) {
+        // Para compras, solo mostrar el error sin redirigir
       }
     }
     return Promise.reject(error);
@@ -152,6 +146,10 @@ export const salesAPI = {
   getStats: (params) => api.get('/sales/stats/summary', { params }),
   getTopProducts: (params) => api.get('/sales/stats/top-products', { params }),
   getMonthlyData: (params) => api.get('/sales/stats/monthly', { params }),
+  // Funciones de pagos parciales
+  addPayment: (id, paymentData) => api.post(`/sales/${id}/payments`, paymentData),
+  getPayments: (id) => api.get(`/sales/${id}/payments`),
+  deletePayment: (id, paymentId) => api.delete(`/sales/${id}/payments/${paymentId}`),
 };
 
 // Funciones de compras
@@ -209,6 +207,44 @@ export const packagesAPI = {
   delete: (id) => api.delete(`/packages/${id}`),
   getStats: () => api.get('/packages/stats/overview'),
   checkStock: (id) => api.get(`/packages/${id}/stock-check`),
+};
+
+// Funciones de bancos
+export const banksAPI = {
+  getAll: (params) => api.get('/banks', { params }),
+  getById: (id) => api.get(`/banks/${id}`),
+  create: (bankData) => api.post('/banks', bankData),
+  update: (id, bankData) => api.put(`/banks/${id}`, bankData),
+  delete: (id) => api.delete(`/banks/${id}`),
+  updateBalance: (id, balanceData) => api.patch(`/banks/${id}/balance`, balanceData),
+  getStats: () => api.get('/banks/stats/summary'),
+};
+
+// API para transacciones bancarias
+export const bankTransactionsAPI = {
+  getTransactions: (bankId, params = {}) => {
+    const queryParams = new URLSearchParams(params).toString();
+    return api.get(`/bank-transactions/${bankId}?${queryParams}`);
+  },
+  
+  getStats: (bankId, params = {}) => {
+    const queryParams = new URLSearchParams(params).toString();
+    return api.get(`/bank-transactions/${bankId}/stats?${queryParams}`);
+  },
+  
+  createTransaction: (bankId, data) => {
+    return api.post(`/bank-transactions/${bankId}`, data);
+  }
+};
+
+// API para pagos con cuenta contable
+export const accountPaymentAPI = {
+  createAccountPayment: (data) => {
+    return api.post('/purchases/account-payment', data);
+  },
+  getAccountPayments: (params = {}) => {
+    return api.get('/purchases/account-payments', { params });
+  }
 };
 
 // Exportar tanto la instancia api como las APIs específicas

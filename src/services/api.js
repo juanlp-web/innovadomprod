@@ -12,13 +12,34 @@ const api = axios.create({
   },
 });
 
-// Interceptor para agregar token de autenticación
+// Interceptor para agregar token de autenticación y tenant ID
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+    
+    // Agregar tenant ID si está disponible
+    const user = localStorage.getItem('user');
+    const selectedTenant = localStorage.getItem('selectedTenant');
+    
+    // Priorizar selectedTenant sobre tenant del usuario
+    if (selectedTenant) {
+      config.headers['X-Tenant-ID'] = selectedTenant;
+    } else if (user) {
+      try {
+        const userData = JSON.parse(user);
+        
+        if (userData.tenant && userData.tenant._id) {
+          config.headers['X-Tenant-ID'] = userData.tenant._id;
+        } else {
+        }
+      } catch (error) {
+      }
+    } else {
+    }
+    
     return config;
   },
   (error) => {
@@ -30,11 +51,18 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
+    // Solo redirigir si es un error 401 y NO es una llamada de purchases
     if (error.response?.status === 401) {
-      // Token expirado o inválido
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      window.location.href = '/login';
+      const isPurchaseCall = error.config?.url?.includes('/purchases');
+      
+      // Solo hacer logout automático si no es una llamada de purchases
+      if (!isPurchaseCall) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        window.location.href = '/login';
+      } else {
+        // Para compras, solo mostrar el error sin redirigir
+      }
     }
     return Promise.reject(error);
   }
@@ -124,6 +152,10 @@ export const salesAPI = {
     params: { startDate, endDate } 
   }),
   getAvailablePackages: () => api.get('/sales/available-packages'),
+  // Funciones de pagos parciales
+  addPayment: (id, paymentData) => api.post(`/sales/${id}/payments`, paymentData),
+  getPayments: (id) => api.get(`/sales/${id}/payments`),
+  deletePayment: (id, paymentId) => api.delete(`/sales/${id}/payments/${paymentId}`),
 };
 
 // Servicios de compras
@@ -136,6 +168,10 @@ export const purchasesAPI = {
   changeStatus: (id, status) => api.patch(`/purchases/${id}/status`, { status }),
   getStats: () => api.get('/purchases/stats/overview'),
   getBySupplier: (supplierId) => api.get(`/purchases/supplier/${supplierId}`),
+  // Funciones de pagos parciales
+  addPayment: (id, paymentData) => api.post(`/purchases/${id}/payments`, paymentData),
+  getPayments: (id) => api.get(`/purchases/${id}/payments`),
+  deletePayment: (id, paymentId) => api.delete(`/purchases/${id}/payments/${paymentId}`),
 };
 
 // Servicios de paquetes
@@ -168,6 +204,52 @@ export const configAPI = {
   update: (key, value, type, description) => api.put(`/config/${key}`, { value, type, description }),
   delete: (key) => api.delete(`/config/${key}`),
   getAllValues: () => api.get('/config/values/all'),
+};
+
+// Servicios de cuentas contables
+export const accountsAPI = {
+  getAll: (params = {}) => {
+    const queryParams = new URLSearchParams(params).toString();
+    return api.get(`/accounts?${queryParams}`);
+  },
+  getFlat: (params = {}) => {
+    const queryParams = new URLSearchParams(params).toString();
+    return api.get(`/accounts/flat?${queryParams}`);
+  },
+  getById: (id) => api.get(`/accounts/${id}`),
+  create: (accountData) => api.post('/accounts', accountData),
+  update: (id, accountData) => api.put(`/accounts/${id}`, accountData),
+  delete: (id) => api.delete(`/accounts/${id}`),
+};
+
+// Servicios de configuraciones contables
+export const accountConfigsAPI = {
+  getAll: () => api.get('/account-configs'),
+  getByModule: (module) => api.get(`/account-configs/${module}`),
+  updateModule: (module, configurations) => api.put(`/account-configs/${module}`, { configurations }),
+  updateAll: (configs) => api.post('/account-configs', { configs }),
+};
+
+// Servicios de administración
+export const adminAPI = {
+  // Tenants
+  getTenants: (params = {}) => {
+    const queryParams = new URLSearchParams(params).toString();
+    return api.get(`/admin/tenants?${queryParams}`);
+  },
+  createTenant: (tenantData) => api.post('/admin/tenants', tenantData),
+  updateTenant: (id, tenantData) => api.put(`/admin/tenants/${id}`, tenantData),
+  deleteTenant: (id) => api.delete(`/admin/tenants/${id}`),
+  
+  // Usuarios
+  getUsersWithoutTenant: () => api.get('/admin/users/without-tenant'),
+  createUser: (userData) => api.post('/admin/users', userData),
+  assignTenantToUser: (userId, tenantId, tenantRole = 'user') => 
+    api.post(`/admin/users/${userId}/assign-tenant`, { tenantId, tenantRole }),
+  removeTenantFromUser: (userId) => api.post(`/admin/users/${userId}/remove-tenant`),
+  
+  // Estadísticas
+  getStats: () => api.get('/admin/stats'),
 };
 
 export default api;

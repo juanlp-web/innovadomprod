@@ -23,7 +23,9 @@ import {
   Layers,
   Settings,
   X,
-  Menu
+  Menu,
+  Calculator,
+  Shield
 } from 'lucide-react'
 
 export function Sidebar({ onCollapseChange, isCollapsed, isMobileMenuOpen, setIsMobileMenuOpen }) {
@@ -52,9 +54,32 @@ export function Sidebar({ onCollapseChange, isCollapsed, isMobileMenuOpen, setIs
     },
     { id: 'clientes', label: 'Clientes', icon: Users, description: 'Base de clientes', path: '/clientes' },
     { id: 'proveedores', label: 'Proveedores', icon: Factory, description: 'Gestión de proveedores', path: '/proveedores' },
+    { 
+      id: 'contabilidad', 
+      label: 'Contabilidad', 
+      icon: Calculator, 
+      description: 'Gestión contable y financiera', 
+      path: '/contabilidad',
+      hasSubmenu: true,
+      submenu: [
+        { id: 'bancos', label: 'Bancos', path: '/bancos' },
+        { id: 'catalogo-cuentas', label: 'Catálogo de Cuentas', path: '/catalogo-cuentas' }
+      ]
+    },
     { id: 'reporteria', label: 'Reportería', icon: FileBarChart, description: 'Informes y reportes del sistema', path: '/reporteria' },
-    { id: 'configuracion', label: 'Configuración', icon: Settings, description: 'Configuración del sistema', path: '/configuracion' },
-    { id: 'perfil', label: 'Perfil', icon: User, description: 'Configuración personal', path: '/perfil' }
+    { id: 'admin', label: 'Administración', icon: Shield, description: 'Gestión de tenants y usuarios', path: '/admin' },
+    { id: 'perfil', label: 'Perfil', icon: User, description: 'Configuración personal', path: '/perfil' },
+    { 
+      id: 'configuracion', 
+      label: 'Configuración', 
+      icon: Settings, 
+      description: 'Configuración del sistema', 
+      path: '/configuracion',
+      hasSubmenu: true,
+      submenu: [
+        { id: 'configuracion-general', label: 'Configuración General', path: '/configuracion' }
+      ]
+    }
   ]
 
   const handleCollapse = () => {

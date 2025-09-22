@@ -26,7 +26,6 @@ export const useClients = () => {
         throw new Error(response.data.message || 'Error al cargar clientes');
       }
     } catch (err) {
-      console.error('Error al cargar clientes:', err);
       setError(err.message || 'Error al cargar clientes');
       setClients([]);
     } finally {
@@ -43,7 +42,6 @@ export const useClients = () => {
         throw new Error(response.data.message || 'Error al obtener cliente');
       }
     } catch (err) {
-      console.error('Error al obtener cliente:', err);
       throw err;
     }
   }, []);
@@ -63,7 +61,6 @@ export const useClients = () => {
         throw new Error(response.data.message || 'Error al crear cliente');
       }
     } catch (err) {
-      console.error('Error al crear cliente:', err);
       setError(err.message || 'Error al crear cliente');
       return { success: false, error: err.message };
     } finally {
@@ -90,7 +87,6 @@ export const useClients = () => {
         throw new Error(response.data.message || 'Error al actualizar cliente');
       }
     } catch (err) {
-      console.error('Error al actualizar cliente:', err);
       setError(err.message || 'Error al actualizar cliente');
       return { success: false, error: err.message };
     } finally {
@@ -113,7 +109,6 @@ export const useClients = () => {
         throw new Error(response.data.message || 'Error al eliminar cliente');
       }
     } catch (err) {
-      console.error('Error al eliminar cliente:', err);
       setError(err.message || 'Error al eliminar cliente');
       return { success: false, error: err.message };
     } finally {
@@ -140,7 +135,6 @@ export const useClients = () => {
         throw new Error(response.data.message || 'Error al cambiar estado');
       }
     } catch (err) {
-      console.error('Error al cambiar estado del cliente:', err);
       setError(err.message || 'Error al cambiar estado');
       return { success: false, error: err.message };
     }
@@ -165,7 +159,6 @@ export const useClients = () => {
         throw new Error(response.data.message || 'Error en la búsqueda');
       }
     } catch (err) {
-      console.error('Error en la búsqueda:', err);
       setError(err.message || 'Error en la búsqueda');
       setClients([]);
     } finally {
@@ -190,7 +183,6 @@ export const useClients = () => {
         throw new Error(response.data.message || 'Error al cambiar página');
       }
     } catch (err) {
-      console.error('Error al cambiar página:', err);
       setError(err.message || 'Error al cambiar página');
     } finally {
       setLoading(false);

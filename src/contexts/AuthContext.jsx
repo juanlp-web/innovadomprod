@@ -35,7 +35,6 @@ export const AuthProvider = ({ children }) => {
             }
           } catch (profileError) {
             // Si falla el profile, pero tenemos datos locales válidos, mantener sesión
-            console.warn('Error al verificar perfil, manteniendo sesión local:', profileError);
             
             // Solo hacer logout si el error indica token completamente inválido
             if (profileError.response?.status === 401) {
@@ -43,7 +42,6 @@ export const AuthProvider = ({ children }) => {
             }
           }
         } catch (parseError) {
-          console.error('Error al parsear usuario almacenado:', parseError);
           logout();
         }
       } else if (token && !storedUser) {
@@ -56,7 +54,6 @@ export const AuthProvider = ({ children }) => {
             localStorage.setItem('user', JSON.stringify(userData));
           }
         } catch (error) {
-          console.error('Error al obtener perfil:', error);
           logout();
         }
       }
@@ -89,7 +86,6 @@ export const AuthProvider = ({ children }) => {
         };
       }
     } catch (error) {
-      console.error('Error en login:', error);
       return {
         success: false,
         message: error.response?.data?.message || 'Error en el login'
@@ -119,7 +115,6 @@ export const AuthProvider = ({ children }) => {
         };
       }
     } catch (error) {
-      console.error('Error en registro:', error);
       return {
         success: false,
         message: error.response?.data?.message || 'Error en el registro'
@@ -160,7 +155,6 @@ export const AuthProvider = ({ children }) => {
         };
       }
     } catch (error) {
-      console.error('Error al actualizar perfil:', error);
       return {
         success: false,
         message: error.response?.data?.message || 'Error al actualizar perfil'
@@ -201,21 +195,17 @@ export const AuthProvider = ({ children }) => {
         // Actualizar timestamp de última actividad
         localStorage.setItem('lastActivity', Date.now().toString());
         
-        console.log('Sesión refrescada exitosamente');
         return { success: true };
       } else {
-        console.warn('Respuesta inválida al refrescar sesión');
         return {
           success: false,
           message: 'Respuesta inválida del servidor'
         };
       }
     } catch (error) {
-      console.error('Error al refrescar sesión:', error);
       
       // Solo hacer logout si es un error 401 (token inválido)
       if (error.response?.status === 401) {
-        console.warn('Token inválido, cerrando sesión');
         logout();
       }
       

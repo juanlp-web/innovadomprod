@@ -1,0 +1,6 @@
+name,email,phone,address,type,status
+"Juan Pérez","juan.perez@email.com","555-0123","Calle Principal 123",individual,Activo
+"Empresa ABC S.A.","contacto@empresaabc.com","555-0456","Av. Comercial 456",empresa,Activo
+"Distribuidora XYZ","ventas@distribuidoraxyz.com","555-0321","Av. Industrial 321",distribuidor,Pendiente
+"Cliente Inactivo","inactivo@email.com","555-0999","Calle Inactiva 999",individual,Inactivo
+

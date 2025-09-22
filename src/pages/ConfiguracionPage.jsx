@@ -50,7 +50,6 @@ export function ConfiguracionPage() {
 
   const handleInputChange = (e) => {
     const { name, value, type } = e.target;
-    console.log('Input change:', { name, value, type });
     
     let newValue = value;
     if (type === 'number') {
@@ -62,7 +61,6 @@ export function ConfiguracionPage() {
       }
     }
     
-    console.log('New value:', newValue);
     
     setFormData(prev => ({
       ...prev,
@@ -74,9 +72,6 @@ export function ConfiguracionPage() {
     try {
       setSaving(true);
       
-      console.log('Form data before save:', formData);
-      console.log('IVA percentage value:', formData.iva_percentage);
-      console.log('IVA percentage type:', typeof formData.iva_percentage);
       
       // Guardar cada configuración
       const configsToSave = [
@@ -99,12 +94,12 @@ export function ConfiguracionPage() {
 
       showSuccess('Configuraciones guardadas correctamente');
     } catch (err) {
-      console.error('Error al guardar configuraciones:', err);
       showError('Error al guardar las configuraciones');
     } finally {
       setSaving(false);
     }
   };
+
 
 
   if (loading) {
@@ -324,6 +319,8 @@ export function ConfiguracionPage() {
           </div>
         </div>
       </div>
+
+
 
       <ToastContainer />
     </div>

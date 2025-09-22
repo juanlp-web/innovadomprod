@@ -18,6 +18,9 @@ import { LotesPage } from '@/pages/LotesPage';
 import { ReporteriaPage } from '@/pages/ReporteriaPage';
 import { PerfilPage } from '@/pages/PerfilPage';
 import { ConfiguracionPage } from '@/pages/ConfiguracionPage';
+import { BancosPage } from '@/pages/BancosPage';
+import { CatalogoCuentasPage } from '@/pages/CatalogoCuentasPage';
+import { AdminPage } from '@/pages/AdminPage';
 import { Sidebar } from '@/components/Sidebar';
 import { MobileHeader } from '@/components/MobileHeader';
 
@@ -116,6 +119,9 @@ function App() {
         <Route path="/lotes" element={renderLayout(LotesPage)} />
         <Route path="/reporteria" element={renderLayout(ReporteriaPage)} />
         <Route path="/configuracion" element={renderLayout(ConfiguracionPage)} />
+        <Route path="/bancos" element={renderLayout(BancosPage)} />
+        <Route path="/catalogo-cuentas" element={renderLayout(CatalogoCuentasPage)} />
+        <Route path="/admin" element={renderLayout(AdminPage)} />
         <Route path="/perfil" element={renderLayout(PerfilPage)} />
         <Route path="/login" element={<Navigate to="/dashboard" replace />} />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />

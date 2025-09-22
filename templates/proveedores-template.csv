@@ -1,0 +1,5 @@
+name,email,phone,address,status
+"Proveedor ABC","contacto@proveedorabc.com","555-0123","Calle Industrial 123",Activo
+"Distribuidora XYZ","ventas@distribuidoraxyz.com","555-0456","Av. Comercial 456",Activo
+"Proveedor Inactivo","inactivo@proveedor.com","555-0999","Calle Inactiva 999",Inactivo
+

@@ -15,7 +15,6 @@ export function usePurchases() {
 
   // Obtener todas las compras
   const fetchPurchases = useCallback(async (params = {}) => {
-    console.log('🔍 fetchPurchases ejecutándose con params:', params);
     try {
       setLoading(true);
       setError(null);
@@ -25,13 +24,18 @@ export function usePurchases() {
       if (response.data.success) {
         setPurchases(response.data.data);
         setPagination(response.data.pagination);
-        console.log('✅ fetchPurchases completado exitosamente');
       } else {
         setError('Error al obtener las compras');
       }
     } catch (err) {
-      console.error('Error fetching purchases:', err);
-      setError(err.response?.data?.message || 'Error al obtener las compras');
+      // Manejar errores específicos sin redirigir
+      if (err.response?.status === 401) {
+        setError('Error de autenticación. Por favor, verifica tu sesión.');
+      } else if (err.response?.status === 403) {
+        setError('No tienes permisos para acceder a las compras.');
+      } else {
+        setError(err.response?.data?.message || 'Error al obtener las compras');
+      }
     } finally {
       setLoading(false);
     }
@@ -52,7 +56,6 @@ export function usePurchases() {
         return null;
       }
     } catch (err) {
-      console.error('Error fetching purchase:', err);
       setError(err.response?.data?.message || 'Error al obtener la compra');
       return null;
     } finally {
@@ -77,7 +80,6 @@ export function usePurchases() {
         return { success: false, message: response.data.message };
       }
     } catch (err) {
-      console.error('Error creating purchase:', err);
       const errorMessage = err.response?.data?.message || 'Error al crear la compra';
       setError(errorMessage);
       return { success: false, message: errorMessage };
@@ -103,7 +105,6 @@ export function usePurchases() {
         return { success: false, message: response.data.message };
       }
     } catch (err) {
-      console.error('Error updating purchase:', err);
       const errorMessage = err.response?.data?.message || 'Error al actualizar la compra';
       setError(errorMessage);
       return { success: false, message: errorMessage };
@@ -129,7 +130,6 @@ export function usePurchases() {
         return { success: false, message: response.data.message };
       }
     } catch (err) {
-      console.error('Error changing purchase status:', err);
       const errorMessage = err.response?.data?.message || 'Error al cambiar el estado de la compra';
       setError(errorMessage);
       return { success: false, message: errorMessage };
@@ -155,7 +155,6 @@ export function usePurchases() {
         return { success: false, message: response.data.message };
       }
     } catch (err) {
-      console.error('Error deleting purchase:', err);
       const errorMessage = err.response?.data?.message || 'Error al eliminar la compra';
       setError(errorMessage);
       return { success: false, message: errorMessage };
@@ -178,7 +177,6 @@ export function usePurchases() {
         setError('Error al obtener las estadísticas');
       }
     } catch (err) {
-      console.error('Error fetching stats:', err);
       setError(err.response?.data?.message || 'Error al obtener las estadísticas');
     } finally {
       setLoading(false);
@@ -200,13 +198,84 @@ export function usePurchases() {
         return [];
       }
     } catch (err) {
-      console.error('Error fetching purchases by supplier:', err);
       setError(err.response?.data?.message || 'Error al obtener las compras del proveedor');
       return [];
     } finally {
       setLoading(false);
     }
   }, []);
+
+  // Agregar pago parcial
+  const addPayment = useCallback(async (purchaseId, paymentData) => {
+    try {
+      
+      setLoading(true);
+      setError(null);
+      
+      const response = await purchasesAPI.addPayment(purchaseId, paymentData);
+      
+      if (response.data.success) {
+        // Recargar todas las compras para actualizar la UI
+        await fetchPurchases();
+        return response.data.data;
+      } else {
+        setError('Error al agregar el pago');
+        return null;
+      }
+    } catch (err) {
+      
+      setError(err.response?.data?.message || 'Error al agregar el pago');
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  }, [fetchPurchases]);
+
+  // Obtener pagos de una compra
+  const getPayments = useCallback(async (purchaseId) => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const response = await purchasesAPI.getPayments(purchaseId);
+      
+      if (response.data.success) {
+        return response.data.data;
+      } else {
+        setError('Error al obtener los pagos');
+        return null;
+      }
+    } catch (err) {
+      setError(err.response?.data?.message || 'Error al obtener los pagos');
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // Eliminar pago parcial
+  const deletePayment = useCallback(async (purchaseId, paymentId) => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const response = await purchasesAPI.deletePayment(purchaseId, paymentId);
+      
+      if (response.data.success) {
+        // Recargar todas las compras para actualizar la UI
+        await fetchPurchases();
+        return response.data.data;
+      } else {
+        setError('Error al eliminar el pago');
+        return null;
+      }
+    } catch (err) {
+      setError(err.response?.data?.message || 'Error al eliminar el pago');
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  }, [fetchPurchases]);
 
   // Limpiar error
   const clearError = useCallback(() => {
@@ -215,7 +284,6 @@ export function usePurchases() {
 
   // Cargar compras al montar el componente
   useEffect(() => {
-    console.log('🚀 usePurchases useEffect ejecutándose - carga inicial');
     fetchPurchases();
   }, []); // Remover fetchPurchases de las dependencias para evitar re-renders
 
@@ -236,6 +304,9 @@ export function usePurchases() {
     deletePurchase,
     fetchStats,
     fetchPurchasesBySupplier,
+    addPayment,
+    getPayments,
+    deletePayment,
     clearError
   };
 }

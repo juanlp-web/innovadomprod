@@ -30,7 +30,6 @@ export const useBatches = () => {
       setCurrentPage(response.data.currentPage);
       setTotal(response.data.total);
     } catch (err) {
-      console.error('Error al obtener lotes:', err);
       setError(err.response?.data?.message || 'Error al obtener lotes');
     } finally {
       setLoading(false);
@@ -46,7 +45,6 @@ export const useBatches = () => {
       const response = await batchesAPI.getById(id);
       return response.data;
     } catch (err) {
-      console.error('Error al obtener lote:', err);
       setError(err.response?.data?.message || 'Error al obtener lote');
       throw err;
     } finally {
@@ -65,7 +63,6 @@ export const useBatches = () => {
       setTotal(prev => prev + 1);
       return response.data;
     } catch (err) {
-      console.error('Error al crear lote:', err);
       setError(err.response?.data?.message || 'Error al crear lote');
       throw err;
     } finally {
@@ -85,7 +82,6 @@ export const useBatches = () => {
       ));
       return response.data;
     } catch (err) {
-      console.error('Error al actualizar lote:', err);
       setError(err.response?.data?.message || 'Error al actualizar lote');
       throw err;
     } finally {
@@ -104,7 +100,6 @@ export const useBatches = () => {
       setTotal(prev => prev - 1);
       return true;
     } catch (err) {
-      console.error('Error al eliminar lote:', err);
       setError(err.response?.data?.message || 'Error al eliminar lote');
       throw err;
     } finally {
@@ -127,7 +122,6 @@ export const useBatches = () => {
       
       return response.data;
     } catch (err) {
-      console.error('Error al consumir stock del lote:', err);
       setError(err.response?.data?.message || 'Error al consumir stock del lote');
       throw err;
     } finally {
@@ -150,7 +144,6 @@ export const useBatches = () => {
       
       return response.data;
     } catch (err) {
-      console.error('Error al restaurar stock del lote:', err);
       setError(err.response?.data?.message || 'Error al restaurar stock del lote');
       throw err;
     } finally {
@@ -167,7 +160,6 @@ export const useBatches = () => {
       const response = await batchesAPI.getActiveByProduct(productId);
       return response.data;
     } catch (err) {
-      console.error('Error al obtener lotes activos del producto:', err);
       setError(err.response?.data?.message || 'Error al obtener lotes activos del producto');
       throw err;
     } finally {
@@ -184,7 +176,6 @@ export const useBatches = () => {
       const response = await batchesAPI.getStats();
       return response.data;
     } catch (err) {
-      console.error('Error al obtener estadísticas de lotes:', err);
       setError(err.response?.data?.message || 'Error al obtener estadísticas de lotes');
       throw err;
     } finally {
@@ -201,7 +192,6 @@ export const useBatches = () => {
       const response = await batchesAPI.getExpiringSoon(days);
       return response.data;
     } catch (err) {
-      console.error('Error al obtener lotes próximos a vencer:', err);
       setError(err.response?.data?.message || 'Error al obtener lotes próximos a vencer');
       throw err;
     } finally {

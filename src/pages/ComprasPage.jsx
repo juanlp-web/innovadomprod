@@ -1,11 +1,17 @@
 import { useState, useEffect } from 'react'
-import { Plus, Edit, Trash2, Search, ShoppingCart, Package, Truck, DollarSign, AlertCircle, Package2 } from 'lucide-react'
+import { Plus, Edit, Trash2, Search, ShoppingCart, Package, Truck, DollarSign, AlertCircle, Package2, Eye, Upload } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { usePurchases } from '@/hooks/usePurchases'
 import { useSuppliers } from '@/hooks/useSuppliers'
 import { useProducts } from '@/hooks/useProducts'
+import { useBanks } from '@/hooks/useBanks'
 import { useMobile } from '@/hooks/useMobile'
 import { PurchaseModal } from '@/components/PurchaseModal'
+import { PaymentModal } from '@/components/PaymentModal'
+import { PaymentHistoryModal } from '@/components/PaymentHistoryModal'
+import { PaymentPromptModal } from '@/components/PaymentPromptModal'
+import { useImport } from '@/hooks/useImport'
+import { ImportModal } from '@/components/ImportModal'
 
 function ComprasPage() {
   const { isMobile } = useMobile()
@@ -16,6 +22,59 @@ function ComprasPage() {
   const [filterCategory, setFilterCategory] = useState('todos')
   const [filterSupplier, setFilterSupplier] = useState('todos')
   const [currentPage, setCurrentPage] = useState(1)
+  
+  // Estados para pagos parciales
+  const [showPaymentModal, setShowPaymentModal] = useState(false)
+  const [selectedPurchaseForPayment, setSelectedPurchaseForPayment] = useState(null)
+  const [purchasePayments, setPurchasePayments] = useState({}) // { purchaseId: { payments, paidAmount, remainingAmount } }
+  const [showPaymentHistoryModal, setShowPaymentHistoryModal] = useState(false)
+  const [selectedPurchaseForHistory, setSelectedPurchaseForHistory] = useState(null)
+  const [showPaymentPromptModal, setShowPaymentPromptModal] = useState(false)
+  const [newlyCreatedPurchase, setNewlyCreatedPurchase] = useState(null)
+  
+  // Hook para importación
+  const {
+    loading: importLoading,
+    importModalOpen,
+    openImportModal,
+    closeImportModal,
+    importData
+  } = useImport('purchases');
+
+  // Configuración para importación
+  const importConfig = {
+    title: "Importar Compras",
+    description: "Importa compras desde un archivo CSV o Excel",
+    sampleData: [
+      {
+        supplierId: "64a1b2c3d4e5f6789012345",
+        productId: "64a1b2c3d4e5f6789012346",
+        quantity: "100",
+        price: "15.75",
+        total: "1575.00",
+        date: "2024-01-15",
+        status: "completada"
+      },
+      {
+        supplierId: "64a1b2c3d4e5f6789012347",
+        productId: "64a1b2c3d4e5f6789012348",
+        quantity: "50",
+        price: "25.50",
+        total: "1275.00",
+        date: "2024-01-16",
+        status: "pendiente"
+      }
+    ],
+    columns: [
+      { key: 'supplierId', header: 'ID del Proveedor', required: true },
+      { key: 'productId', header: 'ID del Producto', required: true },
+      { key: 'quantity', header: 'Cantidad', required: true },
+      { key: 'price', header: 'Precio Unitario', required: true },
+      { key: 'total', header: 'Total', required: true },
+      { key: 'date', header: 'Fecha (YYYY-MM-DD)', required: true },
+      { key: 'status', header: 'Estado (completada/pendiente/cancelada)', required: false }
+    ]
+  };
   
   // Hooks personalizados
   const { 
@@ -29,11 +88,15 @@ function ComprasPage() {
     updatePurchase,
     deletePurchase,
     changePurchaseStatus,
+    addPayment,
+    getPayments,
+    deletePayment,
     clearError
   } = usePurchases()
   
   const { suppliers } = useSuppliers()
   const { products } = useProducts()
+  const { banks, fetchBanks } = useBanks()
 
   const statuses = [
     { value: 'pendiente', label: 'Pendiente', color: 'text-yellow-600', bgColor: 'bg-yellow-50' },
@@ -46,7 +109,6 @@ function ComprasPage() {
 
   // Aplicar filtros y búsqueda
   const applyFilters = () => {
-    console.log('🚀 applyFilters ejecutándose')
     const params = {
       page: currentPage,
       limit: 10
@@ -57,7 +119,6 @@ function ComprasPage() {
     if (filterCategory !== 'todos') params.category = filterCategory
     if (filterSupplier !== 'todos') params.supplier = filterSupplier
 
-    console.log('📡 Llamando fetchPurchases con params:', params)
     fetchPurchases(params)
   }
 
@@ -79,19 +140,15 @@ function ComprasPage() {
 
   // Aplicar filtros cuando cambien (solo después del montaje inicial)
   useEffect(() => {
-    console.log('🔄 useEffect filtros ejecutándose:', { filterStatus, filterCategory, filterSupplier })
     // Evitar ejecutar en el montaje inicial
     if (filterStatus !== 'todos' || filterCategory !== 'todos' || filterSupplier !== 'todos') {
-      console.log('📡 Aplicando filtros desde useEffect')
       applyFilters()
     }
   }, [filterStatus, filterCategory, filterSupplier])
 
   // Aplicar búsqueda con debounce
   useEffect(() => {
-    console.log('🔍 useEffect búsqueda ejecutándose:', { searchTerm })
     const timer = setTimeout(() => {
-      console.log('📡 Aplicando búsqueda desde useEffect')
       setCurrentPage(1)
       applyFilters()
     }, 500)
@@ -130,10 +187,89 @@ function ComprasPage() {
       // Modo creación
       const result = await createPurchase(purchaseData)
       if (result.success) {
+        setNewlyCreatedPurchase(result.data)
         setShowForm(false)
+        setShowPaymentPromptModal(true)
       }
     }
   }
+
+  // Funciones para pagos parciales
+  const handleAddPayment = async (purchaseId, paymentData) => {
+    const result = await addPayment(purchaseId, paymentData)
+    if (result) {
+      setShowPaymentModal(false)
+      setSelectedPurchaseForPayment(null)
+      // Recargar pagos de la compra
+      await loadPurchasePayments(purchaseId)
+      // Recargar cuentas bancarias para obtener balances actualizados
+      await fetchBanks()
+    }
+  }
+
+  const loadPurchasePayments = async (purchaseId) => {
+    const paymentsData = await getPayments(purchaseId)
+    if (paymentsData) {
+      setPurchasePayments(prev => ({
+        ...prev,
+        [purchaseId]: paymentsData
+      }))
+    }
+  }
+
+  const handleOpenPaymentModal = (purchase) => {
+    setSelectedPurchaseForPayment(purchase)
+    setShowPaymentModal(true)
+    loadPurchasePayments(purchase._id)
+  }
+
+  const handleClosePaymentModal = () => {
+    setShowPaymentModal(false)
+    setSelectedPurchaseForPayment(null)
+  }
+
+  const handleOpenPaymentHistory = (purchase) => {
+    setSelectedPurchaseForHistory(purchase)
+    setShowPaymentHistoryModal(true)
+    loadPurchasePayments(purchase._id)
+  }
+
+  const handleClosePaymentHistory = () => {
+    setShowPaymentHistoryModal(false)
+    setSelectedPurchaseForHistory(null)
+  }
+
+  const handleDeletePaymentFromHistory = async (paymentId) => {
+    if (!selectedPurchaseForHistory) return
+
+    const result = await deletePayment(selectedPurchaseForHistory._id, paymentId)
+    if (result) {
+      // Recargar pagos de la compra
+      await loadPurchasePayments(selectedPurchaseForHistory._id)
+      // Recargar cuentas bancarias para obtener balances actualizados
+      await fetchBanks()
+    }
+  }
+
+  const handlePayNow = () => {
+    setShowPaymentPromptModal(false)
+    setShowPaymentModal(true)
+    setSelectedPurchaseForPayment(newlyCreatedPurchase)
+    loadPurchasePayments(newlyCreatedPurchase._id)
+  }
+
+  const handleSkipPayment = () => {
+    setShowPaymentPromptModal(false)
+    setNewlyCreatedPurchase(null)
+  }
+
+  const handleClosePaymentPrompt = () => {
+    setShowPaymentPromptModal(false)
+    setNewlyCreatedPurchase(null)
+  }
+
+
+
 
   // Abrir modal para editar
   const handleEdit = (purchase) => {
@@ -152,6 +288,9 @@ function ComprasPage() {
   }
 
   const formatCurrency = (amount) => {
+    if (amount === undefined || amount === null || isNaN(amount)) {
+      return '$0.00'
+    }
     return new Intl.NumberFormat('es-DO', {
       style: 'currency',
       currency: 'DOP'
@@ -196,7 +335,16 @@ function ComprasPage() {
           <h1 className={`font-bold text-gray-900 mb-2 ${isMobile ? 'text-xl' : 'text-2xl sm:text-3xl lg:text-4xl'}`}>Gestión de Compras</h1>
           <p className={`text-gray-600 ${isMobile ? 'text-sm' : 'text-sm sm:text-base'}`}>Administra las compras y proveedores</p>
         </div>
-        <div className="flex-shrink-0">
+        <div className={`flex-shrink-0 ${isMobile ? 'space-y-2' : 'flex space-x-3'}`}>
+          <Button 
+            onClick={openImportModal}
+            variant="outline"
+            className={`w-full sm:w-auto flex items-center justify-center space-x-2 shadow-medium hover:shadow-strong transform hover:-translate-y-1 transition-all duration-300 ${isMobile ? 'py-3' : ''}`}
+          >
+            <Upload className="w-5 h-5" />
+            <span className={isMobile ? 'text-base' : 'hidden sm:inline'}>Importar</span>
+            <span className={isMobile ? 'hidden' : 'sm:hidden'}>Importar</span>
+          </Button>
           <Button 
             onClick={() => setShowForm(true)}
             className={`btn-primary flex items-center justify-center space-x-2 shadow-medium hover:shadow-strong transform hover:-translate-y-1 transition-all duration-300 ${isMobile ? 'w-full py-3' : 'w-full lg:w-auto'}`}
@@ -210,20 +358,32 @@ function ComprasPage() {
 
       {/* Mostrar error si existe */}
       {error && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center space-x-3">
-          <AlertCircle className="w-5 h-5 text-red-500" />
-          <div>
-            <p className="text-red-800 font-medium">Error</p>
-            <p className="text-red-600 text-sm">{error}</p>
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <AlertCircle className="w-5 h-5 text-red-500" />
+            <div>
+              <p className="text-red-800 font-medium">Error</p>
+              <p className="text-red-600 text-sm">{error}</p>
+            </div>
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={clearError}
-            className="text-red-600 hover:text-red-800"
-          >
-            ×
-          </Button>
+          <div className="flex items-center space-x-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => fetchPurchases()}
+              className="text-red-600 hover:text-red-800 border-red-200 hover:border-red-300"
+            >
+              Reintentar
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={clearError}
+              className="text-red-600 hover:text-red-800"
+            >
+              ×
+            </Button>
+          </div>
         </div>
       )}
 
@@ -255,16 +415,7 @@ function ComprasPage() {
               ))}
             </select>
 
-            <select
-              value={filterCategory}
-              onChange={(e) => setFilterCategory(e.target.value)}
-              className={`w-full border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${isMobile ? 'px-4 py-3 text-base' : 'px-3 sm:px-4 py-2 text-sm'}`}
-            >
-              <option value="todos">Todas las categorías</option>
-              {categories.map(category => (
-                <option key={category} value={category}>{category}</option>
-              ))}
-            </select>
+      
 
             <select
               value={filterSupplier}
@@ -290,6 +441,8 @@ function ComprasPage() {
             <div className="flex items-center space-x-2 text-sm text-gray-500">
               <ShoppingCart className="w-4 h-4" />
               <span>Total: {pagination.total}</span>
+              <span>|</span>
+              <span>Pagos Contables: {purchases.filter(p => p.isAccountPayment).length}</span>
             </div>
           </div>
         </div>
@@ -302,114 +455,218 @@ function ComprasPage() {
             </div>
           ) : (
             <>
-              <div className={`grid gap-4 ${isMobile ? 'grid-cols-1' : 'grid-cols-1 sm:grid-cols-2 sm:gap-6'}`}>
-                {purchases.map((purchase) => {
-                  const statusInfo = getStatusInfo(purchase.status)
-                  
-                  return (
-                    <div key={purchase._id} className={`bg-white border border-gray-200 rounded-xl hover:shadow-medium transition-all duration-200 ${isMobile ? 'p-4' : 'p-4 sm:p-6'}`}>
-                      {/* Header de la compra */}
-                      <div className={`flex ${isMobile ? 'flex-col space-y-2' : 'flex-col sm:flex-row sm:items-start sm:justify-between gap-2'} mb-4`}>
-                        <div className="flex-1">
-                          <h4 className={`font-semibold text-gray-900 mb-1 ${isMobile ? 'text-base' : 'text-base sm:text-lg'}`}>{purchase.purchaseNumber}</h4>
-                          <p className={`text-gray-600 ${isMobile ? 'text-sm' : 'text-sm'}`}>{purchase.supplierName}</p>
-                        </div>
-                        <div className={`flex items-center space-x-2 ${isMobile ? 'self-start' : 'self-start'}`}>
-                          <span className={`px-2 py-1 text-xs rounded-full ${statusInfo.bgColor} ${statusInfo.color}`}>
-                            {statusInfo.label}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Productos */}
-                      <div className="mb-4">
-                        <div className="flex items-center space-x-2 mb-2">
-                          <Package className="w-4 h-4 text-gray-400" />
-                          <span className="text-sm font-medium text-gray-900">Productos ({purchase.items.length})</span>
-                        </div>
-                        <div className="space-y-1">
-                          {purchase.items.slice(0, 3).map((item, index) => (
-                            <div key={index} className="text-xs text-gray-600 flex items-center justify-between">
-                              <span>
-                                {item.quantity} {item.unit} {item.productName} - {formatCurrency(item.total)}
-                              </span>
-                              {(() => {
-                                const product = products.find(p => p._id === item.product)
-                                return product?.managesBatches ? (
-                                  <div className="flex items-center space-x-1 text-blue-600">
-                                    <Package2 className="w-3 h-3" />
-                                    <span className="text-xs">Lotes</span>
-                                  </div>
-                                ) : null
-                              })()}
-                            </div>
-                          ))}
-                          {purchase.items.length > 3 && (
-                            <div className="text-xs text-gray-500">
-                              +{purchase.items.length - 3} productos más
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Información financiera */}
-                      <div className="mb-4 p-3 bg-blue-50 rounded-lg">
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-gray-600">Total:</span>
-                          <span className="font-bold text-lg text-gray-900">{formatCurrency(purchase.total)}</span>
-                        </div>
-                      </div>
-
-                      {/* Información adicional */}
-                      <div className="mb-4 flex items-center justify-between text-xs text-gray-500">
-                        <div>
-                          <div>Orden: {formatDate(purchase.orderDate)}</div>
-                          <div>Entrega: {formatDate(purchase.expectedDelivery)}</div>
-                        </div>
-                        <div className="text-right">
-                          <div>Categoría: {purchase.category}</div>
-                          <div>{purchase.paymentMethod}</div>
-                        </div>
-                      </div>
-
-                      {/* Acciones */}
-                      <div className={`flex ${isMobile ? 'flex-col space-y-2' : 'items-center space-x-2'}`}>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className={`btn-secondary ${isMobile ? 'w-full' : 'flex-1'}`}
-                          onClick={() => handleEdit(purchase)}
-                        >
-                          <Edit className={`${isMobile ? 'w-4 h-4 mr-2' : 'w-4 h-4 mr-2'}`} />
-                          Editar
-                        </Button>
+              {/* Tabla de compras */}
+              <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Compra
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Proveedor
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Productos
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Total
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Pagos
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Estado
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Fecha
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Acciones
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {purchases.map((purchase) => {
+                        const statusInfo = getStatusInfo(purchase.status)
                         
-                        <div className={`flex ${isMobile ? 'space-x-2' : 'items-center space-x-2'}`}>
-                          {/* Selector de estado */}
-                          <select
-                            value={purchase.status}
-                            onChange={(e) => handleStatusChange(purchase._id, e.target.value)}
-                            className={`border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 ${isMobile ? 'px-3 py-2 text-sm flex-1' : 'px-3 py-1 text-xs'}`}
-                          >
-                            {statuses.map(status => (
-                              <option key={status.value} value={status.value}>{status.label}</option>
-                            ))}
-                          </select>
-                          
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleDelete(purchase._id)}
-                            className={`text-red-600 hover:text-red-700 border-red-200 hover:border-red-300 ${isMobile ? 'px-3' : ''}`}
-                            disabled={purchase.status !== 'pendiente'}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  )
-                })}
+                        return (
+                          <tr key={purchase._id} className="hover:bg-gray-50">
+                            {/* Compra */}
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div>
+                                <div className="text-sm font-medium text-gray-900">{purchase.purchaseNumber}</div>
+                             
+                                {purchase.isAccountPayment && (
+                                  <div className="text-xs text-blue-600 font-medium">
+                                    💰 Pago Contable
+                                  </div>
+                                )}
+                              </div>
+                            </td>
+                            
+                            {/* Proveedor */}
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm text-gray-900">
+                                {purchase.isAccountPayment ? (
+                                  <div>
+                                    <div className="font-medium">{purchase.supplierName}</div>
+                                    <div className="text-xs text-gray-500">
+                                      Cuenta: {purchase.accountCode} - {purchase.accountName}
+                                    </div>
+                                  </div>
+                                ) : (
+                                  purchase.supplierName
+                                )}
+                              </div>
+                            </td>
+                            
+                            {/* Productos */}
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="flex items-center space-x-2">
+                                <Package className="w-4 h-4 text-gray-400" />
+                                <span className="text-sm text-gray-900">
+                                  {purchase.isAccountPayment ? (
+                                    <div>
+                                      <div>{purchase.items[0]?.productName || 'Pago Contable'}</div>
+                                      <div className="text-xs text-gray-500">
+                                        {purchase.items[0]?.description || 'Sin descripción'}
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <div>
+                                      <div>{purchase.items.length} items</div>
+                                      {purchase.items.some(item => {
+                                        const product = products.find(p => p._id === item.product)
+                                        return product?.managesBatches
+                                      }) && (
+                                        <div className="flex items-center space-x-1 text-blue-600">
+                                          <Package2 className="w-3 h-3" />
+                                          <span className="text-xs">Lotes</span>
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+                                </span>
+                              </div>
+                            </td>
+                            
+                            {/* Total */}
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm font-medium text-gray-900">{formatCurrency(purchase.total || 0)}</div>
+                            </td>
+                            
+                            {/* Pagos */}
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm">
+                                {(purchase.paidAmount || 0) > 0 && (
+                                  <div className="text-green-600 font-medium">
+                                    Pagado: {formatCurrency(purchase.paidAmount || 0)}
+                                  </div>
+                                )}
+                                {purchase.paymentStatus !== 'pagado' && (purchase.remainingAmount || 0) > 0 && (
+                                  <div className="text-orange-600 text-xs">
+                                    Restante: {formatCurrency(purchase.remainingAmount || 0)}
+                                  </div>
+                                )}
+                                <div className={`text-xs font-medium ${
+                                  purchase.paymentStatus === 'pagado' ? 'text-green-600' :
+                                  purchase.paymentStatus === 'parcial' ? 'text-orange-600' :
+                                  'text-gray-600'
+                                }`}>
+                                  {purchase.paymentStatus === 'pagado' ? 'Pagado' :
+                                   purchase.paymentStatus === 'parcial' ? 'Pago Parcial' :
+                                   'Pendiente'}
+                                </div>
+                              </div>
+                            </td>
+                            
+                            {/* Estado */}
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <span className={`px-2 py-1 text-xs rounded-full ${statusInfo.bgColor} ${statusInfo.color}`}>
+                                {statusInfo.label}
+                              </span>
+                            </td>
+                            
+                            {/* Fecha */}
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                              <div>{formatDate(purchase.orderDate)}</div>
+                              <div className="text-xs">Entrega: {formatDate(purchase.expectedDelivery)}</div>
+                            </td>
+                            
+                            {/* Acciones */}
+                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                              <div className="flex items-center space-x-2">
+                                {!purchase.isAccountPayment && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => handleEdit(purchase)}
+                                    className="text-blue-600 hover:text-blue-700 border-blue-200 hover:border-blue-300"
+                                  >
+                                    <Edit className="w-4 h-4" />
+                                  </Button>
+                                )}
+                                
+                                {/* Botones de pagos - solo para compras regulares */}
+                                {!purchase.isAccountPayment && purchase.paymentStatus !== 'pagado' && purchase.paymentStatus !== 'cancelado' && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="text-green-600 hover:text-green-700 border-green-200 hover:border-green-300"
+                                    onClick={() => handleOpenPaymentModal(purchase)}
+                                  >
+                                    <DollarSign className="w-4 h-4" />
+                                  </Button>
+                                )}
+                                
+                                {!purchase.isAccountPayment && purchase.paidAmount > 0 && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="text-blue-600 hover:text-blue-700 border-blue-200 hover:border-blue-300"
+                                    onClick={() => handleOpenPaymentHistory(purchase)}
+                                  >
+                                    <Eye className="w-4 h-4" />
+                                  </Button>
+                                )}
+                                
+                                {/* Para pagos contables, mostrar información adicional */}
+                                {purchase.isAccountPayment && (
+                                  <div className="text-xs text-gray-500">
+                                    <div>Método: {purchase.paymentMethod}</div>
+                                    {purchase.reference && <div>Ref: {purchase.reference}</div>}
+                                  </div>
+                                )}
+                                
+                                <select
+                                  value={purchase.status}
+                                  onChange={(e) => handleStatusChange(purchase._id, e.target.value)}
+                                  className="border border-gray-200 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                  disabled={purchase.isAccountPayment}
+                                >
+                                  {statuses.map(status => (
+                                    <option key={status.value} value={status.value}>{status.label}</option>
+                                  ))}
+                                </select>
+                                
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleDelete(purchase._id)}
+                                  className="text-red-600 hover:text-red-700 border-red-200 hover:border-red-300"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </div>
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
               </div>
 
               {/* Paginación */}
@@ -464,6 +721,48 @@ function ComprasPage() {
         onSave={handleSavePurchase}
         loading={loading}
       />
+
+      {/* Modal de Pago Parcial */}
+      <PaymentModal
+        isOpen={showPaymentModal}
+        onClose={handleClosePaymentModal}
+        purchase={selectedPurchaseForPayment}
+        onSave={handleAddPayment}
+        banks={banks}
+      />
+
+      {/* Modal de Historial de Pagos */}
+      <PaymentHistoryModal
+        isOpen={showPaymentHistoryModal}
+        onClose={handleClosePaymentHistory}
+        purchase={selectedPurchaseForHistory}
+        payments={purchasePayments[selectedPurchaseForHistory?._id]?.payments || []}
+        paidAmount={purchasePayments[selectedPurchaseForHistory?._id]?.paidAmount || 0}
+        remainingAmount={purchasePayments[selectedPurchaseForHistory?._id]?.remainingAmount || 0}
+        onDeletePayment={handleDeletePaymentFromHistory}
+      />
+
+      {/* Modal de Prompt de Pago */}
+      <PaymentPromptModal
+        isOpen={showPaymentPromptModal}
+        onClose={handleClosePaymentPrompt}
+        purchase={newlyCreatedPurchase}
+        onPayNow={handlePayNow}
+        onSkip={handleSkipPayment}
+      />
+
+      {/* Modal de Importación */}
+      <ImportModal
+        isOpen={importModalOpen}
+        onClose={closeImportModal}
+        onImport={importData}
+        title={importConfig.title}
+        description={importConfig.description}
+        sampleData={importConfig.sampleData}
+        columns={importConfig.columns}
+        loading={importLoading}
+      />
+
     </div>
   )
 }

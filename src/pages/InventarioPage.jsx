@@ -71,7 +71,6 @@ export function InventarioPage() {
         await performStockAdjustment(itemId, quantity, 'ajuste', 'Ajuste manual de stock')
       }
     } catch (err) {
-      console.error('Error al cargar lotes del producto:', err)
       // Si hay error, hacer ajuste directo
       await performStockAdjustment(itemId, quantity, 'ajuste', 'Ajuste manual de stock')
     }
@@ -82,7 +81,6 @@ export function InventarioPage() {
       await adjustStock(itemId, quantity, reason, notes)
       toast.success('Stock ajustado exitosamente')
     } catch (error) {
-      console.error('Error al ajustar stock:', error)
       toast.error('Error al ajustar el stock')
     }
   }
@@ -128,7 +126,6 @@ export function InventarioPage() {
       setSelectedBatch('')
       setAvailableBatches([])
     } catch (error) {
-      console.error('Error al ajustar stock del lote:', error)
       toast.error('Error al ajustar el stock del lote')
     }
   }

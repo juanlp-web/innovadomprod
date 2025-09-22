@@ -21,7 +21,6 @@ export const TenantSelector = () => {
           const tenant = JSON.parse(savedTenant);
           setSelectedTenant(tenant);
         } catch (error) {
-          console.error('Error parsing saved tenant:', error);
           localStorage.removeItem('selectedTenant');
         }
       }
@@ -77,7 +76,6 @@ export const TenantSelector = () => {
         }
       }
     } catch (error) {
-      console.error('Error loading tenants:', error);
     } finally {
       setLoading(false);
     }
@@ -208,7 +206,6 @@ export const TenantSelector = () => {
                     onClick={() => {
                       setIsOpen(false);
                       // Aquí puedes abrir un modal para crear nuevo tenant
-                      console.log('Crear nuevo tenant');
                     }}
                     className="w-full px-4 py-3 text-left hover:bg-gray-50 transition-colors duration-200"
                   >
