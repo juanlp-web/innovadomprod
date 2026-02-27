@@ -151,3 +151,5 @@ productId,batchNumber,quantity,expiryDate,status
 
 Los templates CSV del frontend ahora están completamente actualizados y alineados con los modelos de la base de datos.
 
+
+

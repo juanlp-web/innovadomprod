@@ -3,3 +3,5 @@ name,unit,category,minStock,description,price,cost,managesBatches
 "Pan Integral","unidad","producto_terminado","50","Pan integral artesanal","3.00","1.50","false"
 "Caja de Empaque","caja","empaque","20","Caja para empaque de productos","0.50","0.30","false"
 
+
+

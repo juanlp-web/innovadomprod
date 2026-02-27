@@ -3,3 +3,5 @@ name,accountType,accountNumber,initialBalance,currentBalance,currency
 "Banco Comercial","banco","0987654321","5000.00","4500.00","USD"
 "Caja Chica","efectivo","","100.00","100.00","DOP"
 
+
+

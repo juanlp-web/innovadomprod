@@ -4,3 +4,5 @@ name,email,phone,address,type,status
 "Distribuidora XYZ","ventas@distribuidoraxyz.com","555-0321","Av. Industrial 321",distribuidor,Pendiente
 "Cliente Inactivo","inactivo@email.com","555-0999","Calle Inactiva 999",individual,Inactivo
 
+
+

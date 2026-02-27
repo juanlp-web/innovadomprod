@@ -158,3 +158,5 @@ node test-import-debug.js
 
 La solución ahora debería manejar correctamente los datos CSV y evitar el error "El nombre del cliente es requerido" mediante validación previa y limpieza de datos.
 
+
+
